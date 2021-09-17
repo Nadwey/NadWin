@@ -3,4 +3,4 @@
 
 ## Użycie
 
-Zobacz (Usage.md)[./Usage.md]
+Zobacz [./Usage.md]
