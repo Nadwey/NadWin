@@ -105,16 +105,16 @@ namespace NW
 
 	void Image::ResizeWithContent(int width, int height)
 	{
-		// Stwórz memDC i wklej tam cokolwiek teraz jest
+		// Stwï¿½rz memDC i wklej tam cokolwiek teraz jest
 		HDC memDC = CreateCompatibleDC(hdc);
 		HBITMAP memBitmap = CreateCompatibleBitmap(hdc, width, height);
 		SelectObject(memDC, memBitmap);
 		BitBlt(memDC, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdc, 0, 0, SRCCOPY);
 
-		// Zmieñ rozmiar
+		// Zmieï¿½ rozmiar
 		Resize(width, height);
 
-		// Wklej z memDC i usuñ je
+		// Wklej z memDC i usuï¿½ je
 		BitBlt(hdc, 0, 0, width, height, memDC, 0, 0, SRCCOPY);
 		DeleteObject(memBitmap);
 		DeleteDC(memDC);
@@ -122,20 +122,20 @@ namespace NW
 	
 	void Image::Stretch(int width, int height, int quality)
 	{
-		// Stwórz memDC i wklej tam cokolwiek teraz jest
+		// Stwï¿½rz memDC i wklej tam cokolwiek teraz jest
 		HDC memDC = CreateCompatibleDC(hdc);
 		HBITMAP memBitmap = CreateCompatibleBitmap(hdc, bitmap.bmWidth, bitmap.bmHeight);
 		SelectObject(memDC, memBitmap);
 		BitBlt(memDC, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdc, 0, 0, SRCCOPY);
 
-		// Pobieranie starego rozmiaru przed zmian¹ rozmiaru
+		// Pobieranie starego rozmiaru przed zmianï¿½ rozmiaru
 		int oldWidth = bitmap.bmWidth;
 		int oldHeight = bitmap.bmHeight;
 
-		// Zmieñ rozmiar
+		// Zmieï¿½ rozmiar
 		Resize(width, height);
 
-		// Wklej z memDC i usuñ je
+		// Wklej z memDC i usuï¿½ je
 		int StretchBltPreviousMode = GetStretchBltMode(hdc);
 		if (quality)
 		{
@@ -179,7 +179,7 @@ namespace NW
 
 		// Cokolwiek to robi
 		hBitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&bitmap.bmBits, NULL, NULL);
-		if (!hBitmap || !bitmap.bmBits) throw std::exception("Nie uda³o siê stworzyæ sekcji DIB");
+		if (!hBitmap || !bitmap.bmBits) throw std::exception("Nie udaï¿½o siï¿½ stworzyï¿½ sekcji DIB");
 
 		bitmap.bmBitsPixel = 24;
 		bitmap.bmWidth = bmi.bmiHeader.biWidth;
@@ -315,7 +315,7 @@ namespace NW
 
 	bool Border::NeedsDrawing()
 	{
-		return left || top || right || bottom;
+		return (left || top || right || bottom);
 	}
 
 	//
