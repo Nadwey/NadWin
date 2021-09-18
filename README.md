@@ -1,6 +1,6 @@
 # NadWin
 
-Fast C++ bitmap library
+Fast C++ bitmap library made using WinGDI
 
 ## Użycie
 
