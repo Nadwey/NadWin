@@ -11,4 +11,4 @@
 - [Image::GetWidth(void)](./class_Image_GetWidth().md)
 - [Image::GetHeight(void)](./class_Image_GetHeight().md)
 - [Image::GetSize(void)](./class_Image_GetSize().md)
-- [Image::GetPixel(int x, int y)](./class_Image_GetSize(int,%20int).md)
+- [Image::GetPixel(int x, int y)](./class_Image_GetPixel(int,%20int).md)
