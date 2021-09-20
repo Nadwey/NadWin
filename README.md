@@ -4,7 +4,7 @@ Fast C++ bitmap library made using WinGDI (this will be library for drawn contro
 
 ## Usage
 
-See [Docs](./Docs/)
+I removed docs because they were trash.
 
 ## Status
 
