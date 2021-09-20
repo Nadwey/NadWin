@@ -1,6 +1,6 @@
 # Image::GetPixel(int, int)
 
-Gets pixel selected color.
+Gets selected pixel color.
 
 ## Syntax
 
