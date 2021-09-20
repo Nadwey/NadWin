@@ -1,6 +1,6 @@
 # Image::GetWidth()
 
-Creates image from bitmap file.
+Gets width of image
 
 ## Syntax
 
