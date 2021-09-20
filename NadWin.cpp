@@ -71,13 +71,13 @@ namespace NW
 		SetPixel(x, y, &newPixel);
 	}
 
-	void Image::SwapPixel(int x1, int y1, int x2, int y2)
+	void Image::SwapPixel(int x0, int y0, int x1, int y1)
 	{
-		Pixel pixel1 = GetPixel(x1, y1);
-		Pixel pixel2 = GetPixel(x2, y2);
+		Pixel pixel1 = GetPixel(x0, y0);
+		Pixel pixel2 = GetPixel(x1, y1);
 
-		SetPixel(x2, y2, &pixel1);
-		SetPixel(x1, y1, &pixel2);
+		SetPixel(x1, y1, &pixel1);
+		SetPixel(x0, y0, &pixel2);
 	}
 
 	void Image::DrawLineI(int x0, int y0, int x1, int y1, NW::Pixel* pixel)
