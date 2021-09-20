@@ -1,11 +1,13 @@
 # NadWin
 
-Fast C++ bitmap library made using WinGDI
+Fast C++ bitmap library made using WinGDI (this will be library for drawn controls, or maybe even not drawn)
 
-## Użycie
+## Usage
 
-Zobacz [Usage.md](Usage.md)
+See [Docs](./Docs/)
 
 ## Status
 
-Bardzo Alpha + Shit Code
+Very Alpha + Shit Code  
+
+Btw. me england very bad so you can open pull request if you find typos or some strange sentences.
