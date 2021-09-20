@@ -34,8 +34,6 @@ namespace NW
 		// Tworzy DC + ³aduje do niego bitmape
 		Image(std::string* FilePath);
 		Image(std::wstring* FilePath);
-		Image(std::string FilePath);
-		Image(std::wstring FilePath);
 
 		~Image();
 
