@@ -5,7 +5,7 @@ Gets width of image
 ## Syntax
 
 ```cpp
-GetWidth(
+int GetWidth(
     void
 );
 ```
