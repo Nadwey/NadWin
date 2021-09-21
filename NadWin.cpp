@@ -54,11 +54,6 @@ namespace NW
 		data[i + 2] = pixel->r;
 	}
 
-	void Image::SetPixel(int x, int y, Pixel pixel)
-	{
-		SetPixel(x, y, &pixel);
-	}
-
 	void Image::SetPixel(int x, int y, NW::Pixel* pixel, float opacity)
 	{
 		NW::Pixel newPixel;
@@ -78,6 +73,17 @@ namespace NW
 
 		SetPixel(x1, y1, &pixel1);
 		SetPixel(x0, y0, &pixel2);
+	}
+
+	Point Image::ClipPixel(int x, int y)
+	{
+		if (x > bitmap.bmWidth - 1) x = bitmap.bmWidth - 1;
+		else if (x < 0) x = 0;
+
+		if (y > bitmap.bmHeight - 1) y = bitmap.bmHeight - 1;
+		else if (y < 0) y = 0;
+		
+		return Point{ x, y };
 	}
 
 	void Image::DrawLineI(int x0, int y0, int x1, int y1, NW::Pixel* pixel)
@@ -118,32 +124,27 @@ namespace NW
 		DeleteDC(memDC);
 	}
 	
-	void Image::Stretch(int width, int height, int quality)
+	
+	void Image::Stretch(int xDest, int yDest, int DestWidth, int DestHeight, int xSrc, int ySrc, int SrcWidth, int SrcHeight, int quality)
 	{
-		// Stwórz memDC i wklej tam cokolwiek teraz jest
-		HDC memDC = CreateCompatibleDC(hdc);
-		HBITMAP memBitmap = CreateCompatibleBitmap(hdc, bitmap.bmWidth, bitmap.bmHeight);
-		SelectObject(memDC, memBitmap);
-		BitBlt(memDC, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdc, 0, 0, SRCCOPY);
-
-		// Pobieranie starego rozmiaru przed zmian¹ rozmiaru
-		int oldWidth = bitmap.bmWidth;
-		int oldHeight = bitmap.bmHeight;
-
-		// Zmieñ rozmiar
-		Resize(width, height);
-
-		// Wklej z memDC i usuñ je
 		int StretchBltPreviousMode = GetStretchBltMode(hdc);
 		if (quality)
 		{
 			SetBrushOrgEx(hdc, quality, quality, 0);
 			SetStretchBltMode(hdc, HALFTONE);
 		}
-		StretchBlt(hdc, 0, 0, width, height, memDC, 0, 0, oldWidth, oldHeight, SRCCOPY);
+
+		BITMAPINFO bmi = GetBitmapInfo();
+		bmi.bmiHeader.biHeight = -bmi.bmiHeader.biHeight;
+		StretchDIBits(hdc, xDest, yDest, DestWidth, DestHeight, xSrc, ySrc, (SrcWidth == -1 ? bitmap.bmWidth : SrcWidth), (SrcHeight == -1 ? bitmap.bmHeight : SrcHeight), bitmap.bmBits, &bmi, DIB_RGB_COLORS, SRCCOPY);
+	
 		SetStretchBltMode(hdc, StretchBltPreviousMode);
-		DeleteObject(memBitmap);
-		DeleteDC(memDC);
+
+	}
+
+	void Image::Stretch(int DestWidth, int DestHeight, int quality)
+	{
+		Stretch(0, 0, DestWidth, DestHeight, 0, 0, -1, -1, quality);
 	}
 
 	const HDC Image::GetHDC()
@@ -166,14 +167,9 @@ namespace NW
 		HDC desktopDC = GetDC(NULL);
 		hdc = CreateCompatibleDC(desktopDC);
 
-		BITMAPINFO bmi;
-		memset(&bmi, 0, sizeof(BITMAPINFO));
-		bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		BITMAPINFO bmi = GetBitmapInfo();
 		bmi.bmiHeader.biWidth = width;
 		bmi.bmiHeader.biHeight = -height;
-		bmi.bmiHeader.biPlanes = 1;
-		bmi.bmiHeader.biBitCount = 24;
-		bmi.bmiHeader.biCompression = BI_RGB;
 
 		// Cokolwiek to robi
 		hBitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&bitmap.bmBits, NULL, NULL);
@@ -231,6 +227,19 @@ namespace NW
 	{
 		if (hBitmap) DeleteObject(hBitmap);
 		if (hdc) DeleteDC(hdc);
+	}
+
+	BITMAPINFO Image::GetBitmapInfo()
+	{
+		BITMAPINFO bmi;
+		memset(&bmi, 0, sizeof(BITMAPINFO));
+		bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		bmi.bmiHeader.biWidth = bitmap.bmWidth;
+		bmi.bmiHeader.biHeight = bitmap.bmHeight;
+		bmi.bmiHeader.biPlanes = 1;
+		bmi.bmiHeader.biBitCount = 24;
+		bmi.bmiHeader.biCompression = BI_RGB;
+		return bmi;
 	}
 	
 	//

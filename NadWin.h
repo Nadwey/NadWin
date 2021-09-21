@@ -7,6 +7,7 @@
 #include <string>
 #include <time.h>
 #include <random>
+#include <math.h>
 #include <windows.h>
 
 #undef LoadImage
@@ -23,6 +24,11 @@ namespace NW
 		unsigned char r;
 		unsigned char g;
 		unsigned char b;
+	};
+
+	struct Point {
+		int x;
+		int y;
 	};
 
 	class Image
@@ -46,24 +52,27 @@ namespace NW
 		// Funkcje do pixeli
 		Pixel GetPixel(int x, int y);
 		void SetPixel(int x, int y, Pixel* pixel);
-		void SetPixel(int x, int y, Pixel pixel);
 		void SetPixel(int x, int y, Pixel* pixel, float opacity);
 		void SwapPixel(int x0, int y0, int x1, int y1);
+		Point ClipPixel(int x, int y);
+		
 
 		// Rysowanie linii u¿ywaj¹c algorytmu Bresenhama
 		void DrawLineI(int x0, int y0, int x1, int y1, Pixel* pixel);
 
 		
 
-		// Zmienia rozmiar bez zawartoœci (mo¿na u¿yæ do hard resetu)
+		// Zmienia rozmiar bez zawartoœci (resetuje)
 		void Resize(int width, int height);
-		// Zmienia rozmiar z zawartoœci¹
+		// Zmienia rozmiar z zawartoœci¹ (kopiuje zawartoœæ, resetuje, wkleja kopie)
 		void ResizeWithContent(int width, int height);
 		/// <summary>
-		/// Zmienia rozmiar z zawartoœci¹ + rozci¹ga
 		/// Je¿eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
+		/// Je¿eli argumenty SrcWidth lub SrcHeight bêd¹ równaæ siê -1 to metoda zast¹pi je wymiarami obrazu
 		/// </summary>
-		void Stretch(int width, int height, int quality = 0);
+		void Stretch(int xDest, int yDest, int DestWidth, int DestHeight, int xSrc, int ySrc, int SrcWidth = -1, int SrcHeight = -1, int quality = 0);
+		// Je¿eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
+		void Stretch(int DestWidth, int DestHeight, int quality = 0);
 
 
 		const HDC GetHDC();
@@ -73,6 +82,7 @@ namespace NW
 		void LoadImage(std::string& FilePath);
 		void LoadImage(std::wstring& FilePath);
 		void Delete();
+		BITMAPINFO GetBitmapInfo();
 		
 		HDC hdc;
 		HBITMAP hBitmap;
