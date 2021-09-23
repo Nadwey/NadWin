@@ -86,6 +86,11 @@ namespace NW
 		return Point{ x, y };
 	}
 
+	bool Image::IsValidPixel(int x, int y)
+	{
+		return (x < 0 || x > bitmap.bmWidth - 1 || y < 0 || y > bitmap.bmHeight - 1);
+	}
+
 	void Image::DrawLineI(int x0, int y0, int x1, int y1, NW::Pixel* pixel)
 	{
 		int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;

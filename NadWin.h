@@ -55,6 +55,8 @@ namespace NW
 		void SetPixel(int x, int y, Pixel* pixel, float opacity);
 		void SwapPixel(int x0, int y0, int x1, int y1);
 		Point ClipPixel(int x, int y);
+		// Sprawdza czy pixel jest w obrazie
+		bool IsValidPixel(int x, int y);
 		
 
 		// Rysowanie linii u¿ywaj¹c algorytmu Bresenhama
