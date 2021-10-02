@@ -9,6 +9,9 @@
 #include <random>
 #include <math.h>
 #include <windows.h>
+#include <locale>
+#include <codecvt>
+#include "deps/lodepng.h"
 
 #undef LoadImage
 
@@ -20,28 +23,38 @@ namespace NW
 		int height;
 	};
 
-	struct Pixel {
+	struct Pixel 
+	{
 		unsigned char r;
 		unsigned char g;
 		unsigned char b;
 	};
 
-	struct Point {
+	struct PixelBGR
+	{
+		unsigned char b;
+		unsigned char g;
+		unsigned char r;
+	};
+
+	struct Point
+	{
 		int x;
 		int y;
 	};
 
-	class Image
+	// GDI Bitmap (only RGB format supported)
+	class Bitmap
 	{
 	public:
 		// Tworzy DC na którym mo¿esz malowaæ
-		Image(int width, int height);
+		Bitmap(int width, int height);
 
 		// Tworzy DC + ³aduje do niego bitmape
-		Image(std::string* FilePath);
-		Image(std::wstring* FilePath);
+		Bitmap(std::string* FilePath);
+		Bitmap(std::wstring* FilePath);
 
-		~Image();
+		~Bitmap();
 
 		// Rozmiar
 		int	GetWidth();
@@ -51,6 +64,7 @@ namespace NW
 
 		// Funkcje do pixeli
 		Pixel GetPixel(int x, int y);
+		PixelBGR& GetPixelRef(int x, int y);
 		void SetPixel(int x, int y, Pixel* pixel);
 		void SetPixel(int x, int y, Pixel* pixel, float opacity);
 		void SwapPixel(int x0, int y0, int x1, int y1);
@@ -91,6 +105,12 @@ namespace NW
 		BITMAP bitmap;
 	};
 
+	class Image {
+	public:
+		Image(std::string path);
+		Image(std::string* path);
+	};
+
 	class Position
 	{
 	public:
@@ -105,6 +125,7 @@ namespace NW
 		int width = 0;
 		int height = 0;
 	};
+	
 
 	class Padding
 	{
@@ -128,6 +149,24 @@ namespace NW
 	private:
 		bool NeedsDrawing();
 	};
+
+	namespace Drawn {
+		class Text
+		{
+		public:
+			Text(std::string text);
+			Text(std::wstring text);
+			Text(std::string* text);
+			Text(std::wstring* text);
+			~Text();
+
+		private:
+			// With null terminator!
+			void Allocate(size_t lenght);
+
+			std::wstring str;
+		};
+	}
 
 	// Klasa wywo³uje srand! (Tylko raz na wszystkie instancje)
 	class Random

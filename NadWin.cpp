@@ -1,4 +1,4 @@
-#include "NadWin.h"
+ï»¿#include "NadWin.h"
 
 namespace NW
 {
@@ -12,39 +12,46 @@ namespace NW
 	// public:
 	//
 
-	Image::Image(int width, int height) { Create(width, height); }
-	Image::Image(std::string* FilePath) { LoadImage(*FilePath); }
-	Image::Image(std::wstring* FilePath) { LoadImage(*FilePath); }
+	Bitmap::Bitmap(int width, int height) { Create(width, height); }
+	Bitmap::Bitmap(std::string* FilePath) { LoadImage(*FilePath); }
+	Bitmap::Bitmap(std::wstring* FilePath) { LoadImage(*FilePath); }
 
-	Image::~Image()
+	Bitmap::~Bitmap()
 	{
 		if (hBitmap) DeleteObject(hBitmap);
 		if (hdc) DeleteDC(hdc);
 	}
 	
-	int Image::GetWidth()
+	int Bitmap::GetWidth()
 	{
 		return bitmap.bmWidth;
 	}
 
-	int Image::GetHeight()
+	int Bitmap::GetHeight()
 	{
 		return bitmap.bmHeight;
 	}
 
-	Size Image::GetSize()
+	Size Bitmap::GetSize()
 	{
 		return Size{ bitmap.bmWidth, bitmap.bmHeight };
 	}
 
-	Pixel Image::GetPixel(int x, int y)
+	Pixel Bitmap::GetPixel(int x, int y)
 	{
 		unsigned char* data = reinterpret_cast<unsigned char*>(bitmap.bmBits);
 		int i = 3 * x + (y * bitmap.bmWidthBytes);
 		return Pixel{ data[i + 2], data[i + 1], data[i] };
 	}
 
-	void Image::SetPixel(int x, int y, Pixel* pixel)
+	PixelBGR& Bitmap::GetPixelRef(int x, int y)
+	{
+		unsigned char* data = reinterpret_cast<unsigned char*>(bitmap.bmBits);
+		int i = 3 * x + (y * bitmap.bmWidthBytes);
+		return *(PixelBGR*)&data[i];
+	}
+
+	void Bitmap::SetPixel(int x, int y, Pixel* pixel)
 	{
 		unsigned char* data = reinterpret_cast<unsigned char*>(bitmap.bmBits);
 		int i = 3 * x + (y * bitmap.bmWidthBytes);
@@ -54,10 +61,10 @@ namespace NW
 		data[i + 2] = pixel->r;
 	}
 
-	void Image::SetPixel(int x, int y, NW::Pixel* pixel, float opacity)
+	void Bitmap::SetPixel(int x, int y, Pixel* pixel, float opacity)
 	{
-		NW::Pixel newPixel;
-		NW::Pixel oldPixel = GetPixel(x, y);
+		Pixel newPixel;
+		Pixel oldPixel = GetPixel(x, y);
 		float rOpacity = 1.0f - opacity;
 		newPixel.r = (pixel->r * opacity) + (oldPixel.r * rOpacity);
 		newPixel.g = (pixel->g * opacity) + (oldPixel.g * rOpacity);
@@ -66,7 +73,7 @@ namespace NW
 		SetPixel(x, y, &newPixel);
 	}
 
-	void Image::SwapPixel(int x0, int y0, int x1, int y1)
+	void Bitmap::SwapPixel(int x0, int y0, int x1, int y1)
 	{
 		Pixel pixel1 = GetPixel(x0, y0);
 		Pixel pixel2 = GetPixel(x1, y1);
@@ -75,7 +82,7 @@ namespace NW
 		SetPixel(x0, y0, &pixel2);
 	}
 
-	Point Image::ClipPixel(int x, int y)
+	Point Bitmap::ClipPixel(int x, int y)
 	{
 		if (x > bitmap.bmWidth - 1) x = bitmap.bmWidth - 1;
 		else if (x < 0) x = 0;
@@ -86,12 +93,12 @@ namespace NW
 		return Point{ x, y };
 	}
 
-	bool Image::IsValidPixel(int x, int y)
+	bool Bitmap::IsValidPixel(int x, int y)
 	{
 		return (x < 0 || x > bitmap.bmWidth - 1 || y < 0 || y > bitmap.bmHeight - 1);
 	}
 
-	void Image::DrawLineI(int x0, int y0, int x1, int y1, NW::Pixel* pixel)
+	void Bitmap::DrawLineI(int x0, int y0, int x1, int y1, Pixel* pixel)
 	{
 		int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
 		int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -106,31 +113,31 @@ namespace NW
 		}
 	}
 
-	void Image::Resize(int width, int height)
+	void Bitmap::Resize(int width, int height)
 	{
 		Delete();
 		Create(width, height);
 	}
 
-	void Image::ResizeWithContent(int width, int height)
+	void Bitmap::ResizeWithContent(int width, int height)
 	{
-		// Stwórz memDC i wklej tam cokolwiek teraz jest
+		// StwÃ³rz memDC i wklej tam zawartoÅ›Ä‡
 		HDC memDC = CreateCompatibleDC(hdc);
 		HBITMAP memBitmap = CreateCompatibleBitmap(hdc, width, height);
 		SelectObject(memDC, memBitmap);
 		BitBlt(memDC, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdc, 0, 0, SRCCOPY);
 
-		// Zmieñ rozmiar
+		// ZmieÅ„ rozmiar
 		Resize(width, height);
 
-		// Wklej z memDC i usuñ je
+		// Wklej zawartoÅ›Ä‡ z memDC i usuÅ„ je
 		BitBlt(hdc, 0, 0, width, height, memDC, 0, 0, SRCCOPY);
 		DeleteObject(memBitmap);
 		DeleteDC(memDC);
 	}
 	
 	
-	void Image::Stretch(int xDest, int yDest, int DestWidth, int DestHeight, int xSrc, int ySrc, int SrcWidth, int SrcHeight, int quality)
+	void Bitmap::Stretch(int xDest, int yDest, int DestWidth, int DestHeight, int xSrc, int ySrc, int SrcWidth, int SrcHeight, int quality)
 	{
 		int StretchBltPreviousMode = GetStretchBltMode(hdc);
 		if (quality)
@@ -144,20 +151,19 @@ namespace NW
 		StretchDIBits(hdc, xDest, yDest, DestWidth, DestHeight, xSrc, ySrc, (SrcWidth == -1 ? bitmap.bmWidth : SrcWidth), (SrcHeight == -1 ? bitmap.bmHeight : SrcHeight), bitmap.bmBits, &bmi, DIB_RGB_COLORS, SRCCOPY);
 	
 		SetStretchBltMode(hdc, StretchBltPreviousMode);
-
 	}
 
-	void Image::Stretch(int DestWidth, int DestHeight, int quality)
+	void Bitmap::Stretch(int DestWidth, int DestHeight, int quality)
 	{
 		Stretch(0, 0, DestWidth, DestHeight, 0, 0, -1, -1, quality);
 	}
 
-	const HDC Image::GetHDC()
+	const HDC Bitmap::GetHDC()
 	{
 		return hdc;
 	}
 
-	const HBITMAP Image::GetHBitmap()
+	const HBITMAP Bitmap::GetHBitmap()
 	{
 		return hBitmap;
 	}
@@ -166,7 +172,7 @@ namespace NW
 	// private:
 	//
 
-	void Image::Create(int width, int height)
+	void Bitmap::Create(int width, int height)
 	{
 		// Memory DC
 		HDC desktopDC = GetDC(NULL);
@@ -177,8 +183,8 @@ namespace NW
 		bmi.bmiHeader.biHeight = -height;
 
 		// Cokolwiek to robi
-		hBitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&bitmap.bmBits, NULL, NULL);
-		if (!hBitmap || !bitmap.bmBits) throw std::exception("Nie uda³o siê stworzyæ sekcji DIB");
+		hBitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&bitmap.bmBits, 0, 0);
+		if (!hBitmap || !bitmap.bmBits) throw std::exception("Nie udaÅ‚o siÄ™ stworzyÄ‡ sekcji DIB");
 
 		bitmap.bmBitsPixel = 24;
 		bitmap.bmWidth = bmi.bmiHeader.biWidth;
@@ -190,26 +196,15 @@ namespace NW
 		SelectObject(hdc, hBitmap);
 	}
 
-	void Image::LoadImage(std::string& FilePath)
+	void Bitmap::LoadImage(std::string& FilePath)
 	{
-		HDC desktopHdc = GetDC(GetDesktopWindow());
-		HDC imageDC = CreateCompatibleDC(desktopHdc);
-		ReleaseDC(GetDesktopWindow(), desktopHdc);
-
-		HBITMAP imageHBitmap = (HBITMAP)LoadImageA(0, FilePath.c_str(), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
-		SelectObject(imageDC, imageHBitmap);
-
-		BITMAP bm;
-		GetObject(imageHBitmap, sizeof(BITMAP), &bm);
-		
-		Create(bm.bmWidth, bm.bmHeight);
-		BitBlt(hdc, 0, 0, bm.bmWidth, bm.bmHeight, imageDC, 0, 0, SRCCOPY);
-
-		DeleteObject(imageHBitmap);
-		DeleteDC(imageDC);
+		std::wstring WFilePath;
+		WFilePath.reserve(FilePath.length());
+		//mbsrtowcs_s(,(wchar_t*)WFilePath.c_str(), FilePath.c_str(), FilePath.length() + 1);
+		LoadImage(WFilePath);
 	}
 
-	void Image::LoadImage(std::wstring& FilePath)
+	void Bitmap::LoadImage(std::wstring& FilePath)
 	{
 		HDC desktopHdc = GetDC(GetDesktopWindow());
 		HDC imageDC = CreateCompatibleDC(desktopHdc);
@@ -228,13 +223,13 @@ namespace NW
 		DeleteDC(imageDC);
 	}
 
-	void Image::Delete()
+	void Bitmap::Delete()
 	{
 		if (hBitmap) DeleteObject(hBitmap);
 		if (hdc) DeleteDC(hdc);
 	}
 
-	BITMAPINFO Image::GetBitmapInfo()
+	BITMAPINFO Bitmap::GetBitmapInfo()
 	{
 		BITMAPINFO bmi;
 		memset(&bmi, 0, sizeof(BITMAPINFO));
@@ -328,6 +323,49 @@ namespace NW
 	bool Border::NeedsDrawing()
 	{
 		return (left || top || right || bottom);
+	}
+
+	namespace Drawn {
+
+		//
+		//
+		// class Text
+		//
+		//
+
+		//
+		// public:
+		//
+
+		Text::Text(std::string* text)
+		{
+			str.reserve(text->length());
+			::MultiByteToWideChar(CP_UTF8, 0, text->c_str(), -1, (LPWSTR)str.c_str(), str.length());
+		}
+
+		Text::Text(std::wstring* text)
+		{
+			str = *text;
+		}
+
+		Text::Text(std::string text)
+		{
+			
+		}
+
+		Text::Text(std::wstring text) : Text(&text)
+		{
+			
+		}
+
+		Text::~Text()
+		{
+
+		}
+
+		//
+		// private:
+		//
 	}
 
 	//
