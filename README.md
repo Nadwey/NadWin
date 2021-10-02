@@ -10,5 +10,3 @@ I removed docs because they were trash.
 ## Status
 
 Very Alpha + Shit Code  
-
-You can open pull request if you find typos or some strange sentences (my english is bad :D).
