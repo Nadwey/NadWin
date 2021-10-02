@@ -47,7 +47,7 @@ namespace NW
 	{
 		unsigned char* data = reinterpret_cast<unsigned char*>(bitmap.bmBits);
 		int i = (3 * x) + (y * (bitmap.bmWidthBytes + widthPadding));
-		return *(PixelBGR*)&data[i];
+		return *reinterpret_cast<PixelBGR*>(data + i);
 	}
 
 	void Bitmap::SetPixel(int x, int y, Pixel* pixel)
@@ -169,7 +169,7 @@ namespace NW
 	void Bitmap::Create(int width, int height)
 	{
 		// Memory DC
-		HDC desktopDC = GetDC(NULL);
+		HDC desktopDC = GetDC(0);
 		hdc = CreateCompatibleDC(desktopDC);
 
 		BITMAPINFO bmi = GetBitmapInfo();
@@ -179,7 +179,7 @@ namespace NW
 		bmi.bmiHeader.biPlanes = 1;
 
 		// Cokolwiek to robi
-		hBitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&bitmap.bmBits, 0, 0);
+		hBitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, reinterpret_cast<void**>(&bitmap.bmBits), 0, 0);
 		if (!hBitmap || !bitmap.bmBits) throw std::exception("Nie udało się stworzyć sekcji DIB");
 
 		bitmap.bmBitsPixel = 24;
@@ -189,16 +189,13 @@ namespace NW
 		bitmap.bmPlanes = 1;
 		CalculatePadding();
 
-		ReleaseDC(NULL, desktopDC);
+		ReleaseDC(0, desktopDC);
 		SelectObject(hdc, hBitmap);
 	}
 
 	void Bitmap::LoadImage(std::string& FilePath)
 	{
-		std::wstring WFilePath;
-		WFilePath.reserve(FilePath.length());
-		//mbsrtowcs_s(,(wchar_t*)WFilePath.c_str(), FilePath.c_str(), FilePath.length() + 1);
-		LoadImage(WFilePath);
+		throw std::exception("Not implemented");
 	}
 
 	void Bitmap::LoadImage(std::wstring& FilePath)
@@ -207,7 +204,7 @@ namespace NW
 		HDC imageDC = CreateCompatibleDC(desktopHdc);
 		ReleaseDC(GetDesktopWindow(), desktopHdc);
 
-		HBITMAP imageHBitmap = (HBITMAP)LoadImageW(0, FilePath.c_str(), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
+		HBITMAP imageHBitmap = reinterpret_cast<HBITMAP>(LoadImageW(0, FilePath.c_str(), IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION));
 		SelectObject(imageDC, imageHBitmap);
 
 		BITMAP bm;
@@ -343,7 +340,7 @@ namespace NW
 		Text::Text(std::string* text)
 		{
 			str.reserve(text->length());
-			::MultiByteToWideChar(CP_UTF8, 0, text->c_str(), -1, (LPWSTR)str.c_str(), str.length());
+			::MultiByteToWideChar(CP_UTF8, 0, text->c_str(), -1, const_cast<LPWSTR>(str.c_str()), str.length());
 		}
 
 		Text::Text(std::wstring* text)
@@ -391,7 +388,7 @@ namespace NW
 		}
 	}
 
-	int Random::Get()
+	inline int Random::Get()
 	{
 		return rand();
 	}

@@ -176,7 +176,7 @@ namespace NW
 		Random();
 
 		// Dos³ownie rand()
-		int Get();
+		inline int Get();
 		int Get(int min, int max);
 
 		// Zwraca losowy float w zakresie 0 - 1
