@@ -39,38 +39,32 @@ namespace NW
 
 	Pixel Bitmap::GetPixel(int x, int y)
 	{
-		unsigned char* data = reinterpret_cast<unsigned char*>(bitmap.bmBits);
-		int i = 3 * x + (y * bitmap.bmWidthBytes);
-		return Pixel{ data[i + 2], data[i + 1], data[i] };
+		PixelBGR& pixelref = GetPixelRef(x, y);
+		return Pixel{ pixelref.r, pixelref.g, pixelref.b };
 	}
 
 	PixelBGR& Bitmap::GetPixelRef(int x, int y)
 	{
 		unsigned char* data = reinterpret_cast<unsigned char*>(bitmap.bmBits);
-		int i = 3 * x + (y * bitmap.bmWidthBytes);
+		int i = (3 * x) + (y * (bitmap.bmWidthBytes + widthPadding));
 		return *(PixelBGR*)&data[i];
 	}
 
 	void Bitmap::SetPixel(int x, int y, Pixel* pixel)
 	{
-		unsigned char* data = reinterpret_cast<unsigned char*>(bitmap.bmBits);
-		int i = 3 * x + (y * bitmap.bmWidthBytes);
-
-		data[i] = pixel->b;
-		data[i + 1] = pixel->g;
-		data[i + 2] = pixel->r;
+		PixelBGR& pixelref = GetPixelRef(x, y);
+		pixelref.r = pixel->r;
+		pixelref.g = pixel->g;
+		pixelref.b = pixel->b;
 	}
 
 	void Bitmap::SetPixel(int x, int y, Pixel* pixel, float opacity)
 	{
-		Pixel newPixel;
-		Pixel oldPixel = GetPixel(x, y);
+		PixelBGR& pixelRef = GetPixelRef(x, y);
 		float rOpacity = 1.0f - opacity;
-		newPixel.r = (pixel->r * opacity) + (oldPixel.r * rOpacity);
-		newPixel.g = (pixel->g * opacity) + (oldPixel.g * rOpacity);
-		newPixel.b = (pixel->b * opacity) + (oldPixel.b * rOpacity);
-
-		SetPixel(x, y, &newPixel);
+		pixelRef.r = (pixel->r * opacity) + (pixelRef.r * rOpacity);
+		pixelRef.g = (pixel->g * opacity) + (pixelRef.g * rOpacity);
+		pixelRef.b = (pixel->b * opacity) + (pixelRef.b * rOpacity);
 	}
 
 	void Bitmap::SwapPixel(int x0, int y0, int x1, int y1)
@@ -181,6 +175,8 @@ namespace NW
 		BITMAPINFO bmi = GetBitmapInfo();
 		bmi.bmiHeader.biWidth = width;
 		bmi.bmiHeader.biHeight = -height;
+		bmi.bmiHeader.biBitCount = 24;
+		bmi.bmiHeader.biPlanes = 1;
 
 		// Cokolwiek to robi
 		hBitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&bitmap.bmBits, 0, 0);
@@ -191,6 +187,7 @@ namespace NW
 		bitmap.bmHeight = -bmi.bmiHeader.biHeight;
 		bitmap.bmWidthBytes = bmi.bmiHeader.biWidth * 3;
 		bitmap.bmPlanes = 1;
+		CalculatePadding();
 
 		ReleaseDC(NULL, desktopDC);
 		SelectObject(hdc, hBitmap);
@@ -236,10 +233,16 @@ namespace NW
 		bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 		bmi.bmiHeader.biWidth = bitmap.bmWidth;
 		bmi.bmiHeader.biHeight = bitmap.bmHeight;
-		bmi.bmiHeader.biPlanes = 1;
-		bmi.bmiHeader.biBitCount = 24;
+		bmi.bmiHeader.biPlanes = bitmap.bmPlanes;
+		bmi.bmiHeader.biBitCount = bitmap.bmBitsPixel;
 		bmi.bmiHeader.biCompression = BI_RGB;
+		bmi.bmiHeader.biSizeImage = 0;
 		return bmi;
+	}
+
+	void Bitmap::CalculatePadding()
+	{
+		if (bitmap.bmWidthBytes % 4 != 0) widthPadding = 4 - (bitmap.bmWidthBytes % 4);
 	}
 	
 	//
