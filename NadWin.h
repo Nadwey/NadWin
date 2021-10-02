@@ -11,7 +11,6 @@
 #include <windows.h>
 #include <locale>
 #include <codecvt>
-#include "deps/lodepng.h"
 
 #undef LoadImage
 
@@ -47,10 +46,10 @@ namespace NW
 	class Bitmap
 	{
 	public:
-		// Tworzy DC na którym mo¿esz malowaæ
+		// Tworzy DC na ktÃ³rym moÂ¿esz malowaÃ¦
 		Bitmap(int width, int height);
 
-		// Tworzy DC + ³aduje do niego bitmape
+		// Tworzy DC + Â³aduje do niego bitmape
 		Bitmap(std::string* FilePath);
 		Bitmap(std::wstring* FilePath);
 
@@ -73,21 +72,21 @@ namespace NW
 		bool IsValidPixel(int x, int y);
 		
 
-		// Rysowanie linii u¿ywaj¹c algorytmu Bresenhama
+		// Rysowanie linii uÂ¿ywajÂ¹c algorytmu Bresenhama
 		void DrawLineI(int x0, int y0, int x1, int y1, Pixel* pixel);
 
 		
 
-		// Zmienia rozmiar bez zawartoœci (resetuje)
+		// Zmienia rozmiar bez zawartoÅ“ci (resetuje)
 		void Resize(int width, int height);
-		// Zmienia rozmiar z zawartoœci¹ (kopiuje zawartoœæ, resetuje, wkleja kopie)
+		// Zmienia rozmiar z zawartoÅ“ciÂ¹ (kopiuje zawartoÅ“Ã¦, resetuje, wkleja kopie)
 		void ResizeWithContent(int width, int height);
 		/// <summary>
-		/// Je¿eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
-		/// Je¿eli argumenty SrcWidth lub SrcHeight bêd¹ równaæ siê -1 to metoda zast¹pi je wymiarami obrazu
+		/// JeÂ¿eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
+		/// JeÂ¿eli argumenty SrcWidth lub SrcHeight bÃªdÂ¹ rÃ³wnaÃ¦ siÃª -1 to metoda zastÂ¹pi je wymiarami obrazu
 		/// </summary>
 		void Stretch(int xDest, int yDest, int DestWidth, int DestHeight, int xSrc, int ySrc, int SrcWidth = -1, int SrcHeight = -1, int quality = 0);
-		// Je¿eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
+		// JeÂ¿eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
 		void Stretch(int DestWidth, int DestHeight, int quality = 0);
 
 
@@ -168,13 +167,13 @@ namespace NW
 		};
 	}
 
-	// Klasa wywo³uje srand! (Tylko raz na wszystkie instancje)
+	// Klasa wywoÂ³uje srand! (Tylko raz na wszystkie instancje)
 	class Random
 	{
 	public:
 		Random();
 
-		// Dos³ownie rand()
+		// DosÂ³ownie rand()
 		int Get();
 		int Get(int min, int max);
 
