@@ -1,12 +1,11 @@
 # NadWin
 
-Fast C++ bitmap library made using WinGDI (this will be library for drawn controls, or maybe even not drawn)
+Biblioteka GUI działająca na WinAPI. Zrobiona ponieważ mi takiej brakowało.
 
-## Usage
+## Użycie
 
-I removed docs because they were trash.
-(You will have to figure out how to use it yourself)
+Soon... 👀
 
 ## Status
 
-Very Alpha + Shit Code  
+Klasa Bitmap + podstawowe okienka.
