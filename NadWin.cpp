@@ -241,95 +241,18 @@ namespace NW
 	{
 		if (bitmap.bmWidthBytes % 4 != 0) widthPadding = 4 - (bitmap.bmWidthBytes % 4);
 	}
-	
-	//
-	//
-	// class Position
-	//
-	//
 
-	//
-	// public:
-	//
-
-	Position::Position(int x, int y, int width, int height)
-	{
-		this->x = x;
-		this->y = y;
-		this->width = width;
-		this->height = height;
-	}
-
-	void Position::operator=(RECT rect)
-	{
-		x = rect.left;
-		y = rect.top;
-		width = rect.right - rect.left;
-		height = rect.bottom - rect.top;
-	}
-
-	Position::operator RECT()
-	{
-		RECT ret;
-		ret.left = x;
-		ret.top = y;
-		ret.right = x + width;
-		ret.bottom = y + height;
-
-		return ret;
-	}
-
-	//
-	//
-	// class Padding
-	//
-	//
-
-	//
-	// public:
-	//
-
-	Padding::Padding(int left, int top, int right, int bottom)
-	{
-		this->left = left;
-		this->top = top;
-		this->right = right;
-		this->bottom = bottom;
-	}
-
-	//
-	//
-	// class Border
-	//
-	//
-
-	//
-	// public:
-	//
-
-	Border::Border(COLORREF color, int left, int top, int right, int bottom)
-	{
-		this->color = color;
-		this->left = left;
-		this->top = top;
-		this->right = right;
-		this->bottom = bottom;
-	}
-
-	//
-	// private:
-	//
-
-	bool Border::NeedsDrawing()
-	{
-		return (left || top || right || bottom);
-	}
-
-	namespace Drawn {
+	namespace UI {
+		std::wstring s2ws(std::string s)
+		{
+			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+			std::wstring ws = converter.from_bytes(s);
+			return ws;
+		}
 
 		//
 		//
-		// class Text
+		// class App
 		//
 		//
 
@@ -337,36 +260,126 @@ namespace NW
 		// public:
 		//
 
-		Text::Text(std::string* text)
+		App::App(std::wstring AppName)
 		{
-			str.reserve(text->length());
-			::MultiByteToWideChar(CP_UTF8, 0, text->c_str(), -1, const_cast<LPWSTR>(str.c_str()), str.length());
+			registerClass(AppName);
+		}
+		
+		App::App(std::string AppName) 
+		{
+			std::wstring AppNameW = s2ws(AppName);
+			registerClass(AppNameW);
 		}
 
-		Text::Text(std::wstring* text)
+		App::~App()
 		{
-			str = *text;
+			UnregisterClassW(AppName.c_str(), hInstance);
 		}
 
-		Text::Text(std::string text)
+		int App::MessageLoop()
 		{
-			
-		}
-
-		Text::Text(std::wstring text) : Text(&text)
-		{
-			
-		}
-
-		Text::~Text()
-		{
-
+			MSG msg; 
+			while (GetMessage(&msg, NULL, 0, 0) != 0)
+			{
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+			return msg.wParam;
 		}
 
 		//
 		// private:
 		//
+
+		void App::registerClass(std::wstring& AppName)
+		{
+			static bool initialized = false;
+			if (initialized) throw std::exception("Application class is arleady registered");
+			hInstance = reinterpret_cast<HINSTANCE>(GetModuleHandle(nullptr));
+
+			WNDCLASSEXW wcx{};
+			wcx.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+			wcx.cbSize = sizeof(WNDCLASSEXW);
+			wcx.lpfnWndProc = reinterpret_cast<WNDPROC>(proc);
+			wcx.hInstance = hInstance;
+			wcx.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW);
+			wcx.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+			wcx.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+			wcx.lpszClassName = AppName.c_str();
+			if (!RegisterClassExW(&wcx)) throw std::exception("Failed to register application class");
+			this->AppName = AppName;
+			initialized = true;
+		}
+
+		LRESULT CALLBACK App::proc(HWND hwnd, UINT msg, LPARAM lParam, WPARAM wParam) 
+		{
+			switch (msg)
+			{
+			case WM_DESTROY:
+			{
+				windowCount--;
+				if (windowCount <= 0)
+				{
+					PostQuitMessage(0);
+					return 0;
+				}
+				break;
+			}
+			default:
+				break;
+			}
+
+			return DefWindowProc(hwnd, msg, lParam, wParam);
+		}
+
+		std::wstring App::AppName = L"";
+		HINSTANCE App::hInstance = nullptr;
+		unsigned long App::windowCount = 0;
+
+		//
+		//
+		// class Window
+		//
+		//
+
+		//
+		// public:
+		//
+
+		Window::Window(std::wstring WindowName, int x, int y, int width, int height)
+		{
+			createWindow(WindowName, x, y, width, height);
+		}
+
+		Window::Window(std::string WindowName, int x, int y, int width, int height)
+		{
+			std::wstring WindowNameW = s2ws(WindowName);
+			createWindow(WindowNameW, x, y, width, height);
+		}
+
+		Window::~Window()
+		{
+			DestroyWindow(hwnd);
+		}
+
+		void Window::Show()
+		{
+			ShowWindow(hwnd, SW_SHOW);
+			UpdateWindow(hwnd);
+		}
+
+		//
+		// private:
+		//
+
+		void Window::createWindow(std::wstring& WindowName, int x, int y, int width, int height) {
+			hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), WindowStyles::Overlappedwindow, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, nullptr, App::hInstance, nullptr);
+			if (!hwnd) throw std::exception("Failed to create window");
+			App::windowCount++;
+		}
 	}
+	
+	
 
 	//
 	//
@@ -383,7 +396,7 @@ namespace NW
 		static bool first = true;
 		if (first)
 		{
-			srand(time(0));
+			srand(time(nullptr));
 			first = false;
 		}
 	}

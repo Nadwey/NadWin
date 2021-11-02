@@ -112,60 +112,70 @@ namespace NW
 		Image(std::string* path);
 	};
 
-	class Position
-	{
-	public:
-		Position() = default;
-		Position(int x, int y, int width, int height);
+	namespace UI {
+		enum WindowStyles {
+			Border = WS_BORDER,
+			Caption = WS_CAPTION,
+			Child = WS_CHILD,
+			Childwindow = WS_CHILDWINDOW,
+			Clipchildren = WS_CLIPCHILDREN,
+			Clipsiblings = WS_CLIPSIBLINGS,
+			Disabled = WS_DISABLED,
+			Dlgframe = WS_DLGFRAME,
+			Group = WS_GROUP,
+			Hscroll = WS_HSCROLL,
+			Iconic = WS_ICONIC,
+			Maximize = WS_MAXIMIZE,
+			Maximizebox = WS_MAXIMIZEBOX,
+			Minimize = WS_MINIMIZE,
+			Minimizebox = WS_MINIMIZEBOX,
+			Overlapped = WS_OVERLAPPED,
+			Overlappedwindow = WS_OVERLAPPEDWINDOW,
+			Popup = WS_POPUP,
+			Popupwindow = WS_POPUPWINDOW,
+			Sizebox = WS_SIZEBOX,
+			Sysmenu = WS_SYSMENU,
+			Tabstop = WS_TABSTOP,
+			Thickframe = WS_THICKFRAME,
+			Tiled = WS_TILED,
+			Tiledwindow = WS_TILEDWINDOW,
+			Visible = WS_VISIBLE,
+			Vscroll = WS_VSCROLL
+		};
 
-		void operator=(RECT rect);
-		operator RECT();
-
-		int x = 0;
-		int y = 0;
-		int width = 0;
-		int height = 0;
-	};
-	
-
-	class Padding
-	{
-	public:
-		Padding() = default;
-		Padding(int left, int top, int right, int bottom);
-
-		int left = 0;
-		int top = 0;
-		int right = 0;
-		int bottom = 0;
-	};
-
-	class Border : public Padding
-	{
-	public:
-		Border() = default;
-		Border(COLORREF color, int left, int top, int right, int bottom);
-
-		COLORREF color = 0;
-	private:
-		bool NeedsDrawing();
-	};
-
-	namespace Drawn {
-		class Text
-		{
+		class App {
 		public:
-			Text(std::string text);
-			Text(std::wstring text);
-			Text(std::string* text);
-			Text(std::wstring* text);
-			~Text();
+			App(std::wstring AppName);
+			App(std::string AppName);
+			~App();
+			
+			int MessageLoop();
 
 		private:
-			// With null terminator!
-			void Allocate(size_t lenght);
+			void registerClass(std::wstring&);
+			static LRESULT CALLBACK proc(HWND, UINT, LPARAM, WPARAM);
 
-			std::wstring str;
+			static std::wstring AppName;
+			static HINSTANCE hInstance;
+			static unsigned long windowCount;
+
+			friend class Window;
+		};
+
+		class Window {
+		public:
+			Window(std::wstring WindowName, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
+			Window(std::string WindowName, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
+			~Window();
+
+			void Show();
+
+		private:
+			void createWindow(std::wstring& WindowName, int x, int y, int width, int height);
+
+			HWND hwnd = nullptr;
+
+			friend class App;
 		};
 	}
 
