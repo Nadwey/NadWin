@@ -373,7 +373,7 @@ namespace NW
 		//
 
 		void Window::createWindow(std::wstring& WindowName, int x, int y, int width, int height) {
-			hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), WindowStyles::Overlappedwindow, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, nullptr, App::hInstance, nullptr);
+			hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), WindowStyles::OverlappedWindow, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, nullptr, App::hInstance, nullptr);
 			if (!hwnd) throw std::exception("Failed to create window");
 			App::windowCount++;
 		}
