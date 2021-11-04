@@ -252,6 +252,54 @@ namespace NW
 
 		//
 		//
+		// class Position
+		//
+		//
+
+		//
+		// public:
+		//
+
+		Position::Position(int x, int y, int width, int height) : x(x), y(y), width(width), height(height)
+		{
+
+		}
+
+		Position::Position(RECT rect) : Position(&rect)
+		{
+
+		}
+
+		Position::Position(RECT* rect)
+		{
+			FromRect(rect);
+		}
+
+		RECT Position::Rect()
+		{
+			RECT rc;
+			rc.left = x;
+			rc.top = y;
+			rc.right = x + width;
+			rc.bottom = y + height;
+			return rc;
+		}
+
+		void Position::FromRect(RECT rect)
+		{
+			FromRect(&rect);
+		}
+
+		void Position::FromRect(RECT* rect)
+		{
+			x = rect->left;
+			y = rect->top;
+			width = rect->right - rect->left;
+			height = rect->bottom - rect->top;
+		}
+
+		//
+		//
 		// class App
 		//
 		//
@@ -302,7 +350,6 @@ namespace NW
 			wcx.cbSize = sizeof(WNDCLASSEXW);
 			wcx.lpfnWndProc = reinterpret_cast<WNDPROC>(proc);
 			wcx.hInstance = hInstance;
-			wcx.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW);
 			wcx.hCursor = LoadCursorW(nullptr, IDC_ARROW);
 			wcx.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
 			wcx.lpszClassName = AppName.c_str();
@@ -313,6 +360,9 @@ namespace NW
 
 		LRESULT CALLBACK App::proc(HWND hwnd, UINT msg, LPARAM lParam, WPARAM wParam) 
 		{
+			Window* windowHandle = reinterpret_cast<Window*>(GetPropA(hwnd, "wClass"));
+			LRESULT wProcRet = 0;
+			if (windowHandle) wProcRet = windowHandle->proc(msg, lParam, wParam);
 			switch (msg)
 			{
 			case WM_DESTROY:
@@ -329,6 +379,7 @@ namespace NW
 				break;
 			}
 
+			if (windowHandle) return wProcRet;
 			return DefWindowProc(hwnd, msg, lParam, wParam);
 		}
 
@@ -362,20 +413,140 @@ namespace NW
 			DestroyWindow(hwnd);
 		}
 
+		const HWND Window::Hwnd()
+		{
+			return hwnd;
+		}
+
+		void Window::Move(int x, int y, int width, int height, bool repaint)
+		{
+			MoveWindow(hwnd, x, y, width, height, repaint);
+		}
+
 		void Window::Show()
 		{
 			ShowWindow(hwnd, SW_SHOW);
 			UpdateWindow(hwnd);
 		}
 
+		void Window::Add(Button& button)
+		{
+			controls.push_back(reinterpret_cast<Control*>(&button));
+		}
+
 		//
 		// private:
 		//
 
-		void Window::createWindow(std::wstring& WindowName, int x, int y, int width, int height) {
+		void Window::createWindow(std::wstring& WindowName, int x, int y, int width, int height) 
+		{
 			hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), WindowStyles::OverlappedWindow, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, nullptr, App::hInstance, nullptr);
 			if (!hwnd) throw std::exception("Failed to create window");
+			SetPropA(hwnd, "wClass", reinterpret_cast<HANDLE>(this));
 			App::windowCount++;
+		}
+
+		LRESULT CALLBACK Window::proc(UINT msg, LPARAM lParam, WPARAM wParam)
+		{
+			switch (msg)
+			{
+			case WM_ERASEBKGND:
+			{
+				return 1;
+			}
+			case WM_PAINT:
+			{
+				HDC dc = GetDC(hwnd);
+
+				ControlRenderInfo controlRenderInfo;
+				controlRenderInfo.hwnd = hwnd;
+				controlRenderInfo.hdc = dc;
+				RECT clientRect;
+				GetClientRect(hwnd, &clientRect);
+				controlRenderInfo.clientRect = &clientRect;
+
+				for (auto const& control : controls)
+				{
+					control->render(controlRenderInfo);
+				}
+
+				ReleaseDC(hwnd, dc);
+				break;
+			}
+			default:
+				break;
+			}
+
+			return DefWindowProc(hwnd, msg, lParam, wParam);
+		}
+
+		//
+		//
+		// class Control
+		//
+		//
+
+		//
+		// public:
+		//
+
+		void Control::SetBackgroundColor(COLORREF color)
+		{
+			backgroundColor = color;
+			if (backgroundBrush)
+			{
+				DeleteObject(reinterpret_cast<HGDIOBJ>(backgroundBrush));
+				backgroundBrush = nullptr;
+			}
+			backgroundBrush = CreateSolidBrush(color);
+		}
+
+		//
+		// protected:
+		//
+
+		void Control::render(ControlRenderInfo&)
+		{
+			throw std::exception("Can't render pure control class");
+		}
+
+		//
+		//
+		// class Button
+		//
+		//
+
+		//
+		// public:
+		//
+
+		Button::Button(Position position, std::string text)
+		{
+			std::wstring ws = s2ws(text);
+			initialize(position, ws);
+		}
+
+		Button::Button(Position position, std::wstring text)
+		{
+			initialize(position, text);
+		}
+
+		Button::~Button()
+		{
+
+		}
+
+		void Button::initialize(Position& position, std::wstring& text)
+		{
+			this->position = position;
+			this->text = text;
+			SetBackgroundColor(RGB(0xee, 0xee, 0xee));
+		}
+
+		void Button::render(ControlRenderInfo& controlRenderInfo)
+		{
+			RECT controlRect = position.Rect();
+			FillRect(controlRenderInfo.hdc, &controlRect, backgroundBrush);
 		}
 	}
 	

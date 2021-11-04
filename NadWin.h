@@ -9,8 +9,12 @@
 #include <random>
 #include <math.h>
 #include <windows.h>
+#include <functional>
 #include <locale>
 #include <codecvt>
+#include <unordered_map>
+#include <memory>
+#include <vector>
 
 #undef LoadImage
 
@@ -106,12 +110,6 @@ namespace NW
 		int widthPadding = 0;
 	};
 
-	class Image {
-	public:
-		Image(std::string path);
-		Image(std::string* path);
-	};
-
 	namespace UI {
 		enum WindowStyles {
 			Border = WS_BORDER,
@@ -143,12 +141,37 @@ namespace NW
 			VScroll = WS_VSCROLL
 		};
 
+		struct ControlRenderInfo {
+			RECT* clientRect;
+			HWND hwnd;
+			HDC hdc;
+		};
+
+		class Position {
+		public:
+			Position() = default;
+			Position(int x, int y, int width, int height);
+			Position(RECT rect);
+			Position(RECT* rect);
+
+			RECT Rect();
+			void FromRect(RECT rect);
+			void FromRect(RECT* rect);
+
+			int x = 0;
+			int y = 0;
+			int width = 0;
+			int height = 0;
+		};
+
+		// W³aœciwe UI
+
 		class App {
 		public:
 			App(std::wstring AppName);
 			App(std::string AppName);
 			~App();
-			
+
 			int MessageLoop();
 
 		private:
@@ -162,20 +185,72 @@ namespace NW
 			friend class Window;
 		};
 
+		
+		// Definicja definicji ;-;
+		class Control;
+		class Button;
+
 		class Window {
 		public:
 			Window(std::wstring WindowName, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
 			Window(std::string WindowName, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
 			~Window();
 
+			const HWND Hwnd();
+			void Move(int x, int y, int width, int height, bool repaint = true);
 			void Show();
 
+			void Add(Button& button);
 		private:
 			void createWindow(std::wstring& WindowName, int x, int y, int width, int height);
+			LRESULT CALLBACK proc(UINT msg, LPARAM lParam, WPARAM wParam);
 
+			std::vector<Control*> controls;
 			HWND hwnd = nullptr;
 
 			friend class App;
+			friend class Control;
+		};
+
+		// Controls
+
+		class Control
+		{
+		public:
+			struct
+			{
+				std::function<void()> OnClick;
+			} Events;
+			
+			void SetBackgroundColor(COLORREF color);
+			COLORREF GetBackgroundColor();
+
+		protected:
+			Position position;
+
+			HBRUSH backgroundBrush;
+			COLORREF backgroundColor;
+
+			virtual void render(ControlRenderInfo& controlRenderInfo);
+
+		private:
+			friend class Window;
+		};
+
+		class Button : public Control
+		{
+		public:
+			Button(Position position, std::string text);
+			Button(Position position, std::wstring text);
+			~Button();
+
+		private:
+			void initialize(Position& position, std::wstring& text);
+			void render(ControlRenderInfo& controlRenderInfo) override;
+
+			std::wstring text;
+
+			friend class Window;
 		};
 	}
 
