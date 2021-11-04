@@ -147,6 +147,44 @@ namespace NW
 			HDC hdc;
 		};
 
+		class Font 
+		{
+		public:
+			Font() = default;
+			Font(int height, std::wstring faceName, int width = 0, bool italic = false, bool underline = false, bool strike = false);
+			Font(int height, std::string faceName, int width = 0, bool italic = false, bool underline = false, bool strike = false);
+			~Font();
+
+			void SetHeight(int height);
+			void SetFaceName(std::wstring faceName);
+			void SetFaceName(std::string faceName);
+			void SetWidth(int width);
+			void SetItalic(bool italic);
+			void SetUnderline(bool underline);
+			void SetStrike(bool strike);
+
+			int GetHeight();
+			std::wstring GetFaceName();
+			int GetWidth();
+			bool GetItalic();
+			bool GetUnderline();
+			bool GetStrike();
+
+			const HFONT GetFont();
+		private:
+			void update();
+
+			HFONT font;
+			int height;
+			std::wstring faceName;
+			int width;
+			bool italic;
+			bool underline;
+			bool strike;
+
+			friend class Control;
+		};
+
 		class Position {
 		public:
 			Position() = default;
@@ -217,6 +255,7 @@ namespace NW
 		class Control
 		{
 		public:
+			Control();
 			struct
 			{
 				std::function<void()> OnClick;
@@ -225,11 +264,12 @@ namespace NW
 			void SetBackgroundColor(COLORREF color);
 			COLORREF GetBackgroundColor();
 
+			Font font;
+			COLORREF foregroundColor = 0x000000;
 		protected:
 			Position position;
-
-			HBRUSH backgroundBrush;
-			COLORREF backgroundColor;
+			HBRUSH backgroundBrush = nullptr;
+			COLORREF backgroundColor = 0;
 
 			virtual void render(ControlRenderInfo& controlRenderInfo);
 

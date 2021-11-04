@@ -252,6 +252,120 @@ namespace NW
 
 		//
 		//
+		// class Font
+		//
+		//
+
+		//
+		// public:
+		//
+
+		Font::Font(int height, std::wstring faceName, int width, bool italic, bool underline, bool strike)
+			: height(height)
+			, faceName(faceName)
+			, width(width)
+			, italic(italic)
+			, underline(underline)
+			, strike(strike)
+		{
+			update();
+		}
+
+		Font::Font(int height, std::string faceName, int width, bool italic, bool underline, bool strike) : height(height)
+			, faceName(s2ws(faceName))
+			, width(width)
+			, italic(italic)
+			, underline(underline)
+			, strike(strike)
+		{
+			update();
+		}
+
+		Font::~Font()
+		{
+			if (font) DeleteObject(font);
+		}
+
+		void Font::SetHeight(int height)
+		{
+			this->height = height;
+			update();
+		}
+		void Font::SetFaceName(std::wstring faceName)
+		{
+			this->faceName = faceName;
+			update();
+		}
+		void Font::SetFaceName(std::string faceName)
+		{
+			this->faceName = s2ws(faceName);
+			update();
+		}
+		void Font::SetWidth(int width)
+		{
+			this->width = width;
+			update();
+		}
+		void Font::SetItalic(bool italic)
+		{
+			this->italic = italic;
+			update();
+		}
+		void Font::SetUnderline(bool underline)
+		{
+			this->underline = underline;
+			update();
+		}
+		void Font::SetStrike(bool strike)
+		{
+			this->strike = strike;
+			update();
+		}
+
+		int Font::GetHeight()
+		{
+			return height;
+		}
+		std::wstring Font::GetFaceName()
+		{
+			return faceName;
+		}
+		int Font::GetWidth()
+		{
+			return width;
+		}
+		bool Font::GetItalic()
+		{
+			return italic;
+		}
+		bool Font::GetUnderline()
+		{
+			return underline;
+		}
+		bool Font::GetStrike()
+		{
+			return strike;
+		}
+
+		const HFONT Font::GetFont()
+		{
+			return font;
+		}
+
+		//
+		// private:
+		//
+
+		void Font::update()
+		{
+			if (font) DeleteObject(font);
+			font = CreateFontW(height, width, 0, 0, 0, italic, underline, strike, 0, 0, 0, CLEARTYPE_QUALITY, 0, faceName.c_str());
+		}
+
+
+
+		//
+		//
 		// class Position
 		//
 		//
@@ -490,6 +604,11 @@ namespace NW
 		// public:
 		//
 
+		Control::Control() : font(20, L"Segoe UI")
+		{
+			
+		}
+
 		void Control::SetBackgroundColor(COLORREF color)
 		{
 			backgroundColor = color;
@@ -540,13 +659,18 @@ namespace NW
 		{
 			this->position = position;
 			this->text = text;
-			SetBackgroundColor(RGB(0xee, 0xee, 0xee));
+			SetBackgroundColor(RGB(255, 255, 255));
 		}
 
 		void Button::render(ControlRenderInfo& controlRenderInfo)
 		{
 			RECT controlRect = position.Rect();
 			FillRect(controlRenderInfo.hdc, &controlRect, backgroundBrush);
+			
+			SelectObject(controlRenderInfo.hdc, font.GetFont());
+			SetBkMode(controlRenderInfo.hdc, TRANSPARENT);
+			SetTextColor(controlRenderInfo.hdc, foregroundColor);
+			DrawTextExW(controlRenderInfo.hdc, const_cast<LPWSTR>(text.c_str()), text.length(), &controlRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE, nullptr);
 		}
 	}
 	
