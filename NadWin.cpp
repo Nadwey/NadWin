@@ -243,6 +243,17 @@ namespace NW
 	}
 
 	namespace UI {
+		//
+		//
+		// class Brush
+		//
+		//
+
+		Brush::Brush(COLORREF color)
+		{
+			
+		}
+
 		std::wstring s2ws(std::string s)
 		{
 			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;

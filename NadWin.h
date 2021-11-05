@@ -50,10 +50,10 @@ namespace NW
 	class Bitmap
 	{
 	public:
-		// Tworzy DC na którym mo¿esz malowaæ
+		// Tworzy DC na ktï¿½rym moï¿½esz malowaï¿½
 		Bitmap(int width, int height);
 
-		// Tworzy DC + ³aduje do niego bitmape
+		// Tworzy DC + ï¿½aduje do niego bitmape
 		Bitmap(std::string* FilePath);
 		Bitmap(std::wstring* FilePath);
 
@@ -76,21 +76,21 @@ namespace NW
 		bool IsValidPixel(int x, int y);
 		
 
-		// Rysowanie linii u¿ywaj¹c algorytmu Bresenhama
+		// Rysowanie linii uï¿½ywajï¿½c algorytmu Bresenhama
 		void DrawLineI(int x0, int y0, int x1, int y1, Pixel* pixel);
 
 		
 
-		// Zmienia rozmiar bez zawartoœci (resetuje)
+		// Zmienia rozmiar bez zawartoï¿½ci (resetuje)
 		void Resize(int width, int height);
-		// Zmienia rozmiar z zawartoœci¹ (kopiuje zawartoœæ, resetuje, wkleja kopie)
+		// Zmienia rozmiar z zawartoï¿½ciï¿½ (kopiuje zawartoï¿½ï¿½, resetuje, wkleja kopie)
 		void ResizeWithContent(int width, int height);
 		/// <summary>
-		/// Je¿eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
-		/// Je¿eli argumenty SrcWidth lub SrcHeight bêd¹ równaæ siê -1 to metoda zast¹pi je wymiarami obrazu
+		/// Jeï¿½eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
+		/// Jeï¿½eli argumenty SrcWidth lub SrcHeight bï¿½dï¿½ rï¿½wnaï¿½ siï¿½ -1 to metoda zastï¿½pi je wymiarami obrazu
 		/// </summary>
 		void Stretch(int xDest, int yDest, int DestWidth, int DestHeight, int xSrc, int ySrc, int SrcWidth = -1, int SrcHeight = -1, int quality = 0);
-		// Je¿eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
+		// Jeï¿½eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
 		void Stretch(int DestWidth, int DestHeight, int quality = 0);
 
 
@@ -145,6 +145,22 @@ namespace NW
 			RECT* clientRect;
 			HWND hwnd;
 			HDC hdc;
+		};
+		
+		class Brush 
+		{
+		public:
+			Brush() = default;
+			Brush(COLORREF color);
+
+			void SetColor(COLORREF color);
+			COLORREF GetColor();
+		private:
+			void update();
+
+			HBRUSH brush = nullptr;
+			COLORREF color;
+
 		};
 
 		class Font 
@@ -202,7 +218,7 @@ namespace NW
 			int height = 0;
 		};
 
-		// W³aœciwe UI
+		// Wï¿½aï¿½ciwe UI
 
 		class App {
 		public:
@@ -294,13 +310,13 @@ namespace NW
 		};
 	}
 
-	// Klasa wywo³uje srand! (Tylko raz na wszystkie instancje)
+	// Klasa wywoï¿½uje srand! (Tylko raz na wszystkie instancje)
 	class Random
 	{
 	public:
 		Random();
 
-		// Dos³ownie rand()
+		// Dosï¿½ownie rand()
 		inline int Get();
 		int Get(int min, int max);
 
