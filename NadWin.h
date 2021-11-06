@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <memory>
 #include <vector>
+#include "Renderer/Renderer.h"
 
 #undef LoadImage
 
@@ -111,7 +112,9 @@ namespace NW
 	};
 
 	namespace UI {
-		enum WindowStyles {
+		void DoEvents();
+
+		enum class WindowStyles : DWORD {
 			Border = WS_BORDER,
 			Caption = WS_CAPTION,
 			Child = WS_CHILD,
@@ -152,14 +155,17 @@ namespace NW
 		public:
 			Brush() = default;
 			Brush(COLORREF color);
+			~Brush();
 
 			void SetColor(COLORREF color);
 			COLORREF GetColor();
+
+			const HBRUSH GetBrush();
 		private:
 			void update();
 
 			HBRUSH brush = nullptr;
-			COLORREF color;
+			COLORREF color = 0x000000;
 
 		};
 
@@ -218,6 +224,33 @@ namespace NW
 			int height = 0;
 		};
 
+		class Padding
+		{
+		public:
+			Padding() = default;
+			Padding(int left, int top, int right, int bottom);
+
+			int left = 0;
+			int top = 0;
+			int right = 0;
+			int bottom = 0;
+		};
+
+		class Border
+		{
+		public:
+			Border() = default;
+			Border(int left, int top, int right, int bottom, COLORREF color);
+
+			bool NeedsRender();
+
+			int left = 0;
+			int top = 0;
+			int right = 0;
+			int bottom = 0;
+			Brush color;
+		};
+
 		// W�a�ciwe UI
 
 		class App {
@@ -254,7 +287,13 @@ namespace NW
 			void Move(int x, int y, int width, int height, bool repaint = true);
 			void Show();
 
-			void Add(Button& button);
+			// Control gets copied by reference!
+			void Add(Control* control);
+			void Remove(Control* button);
+
+			void ReRender();
+
+			Brush background;
 		private:
 			void createWindow(std::wstring& WindowName, int x, int y, int width, int height);
 			LRESULT CALLBACK proc(UINT msg, LPARAM lParam, WPARAM wParam);
@@ -277,16 +316,13 @@ namespace NW
 				std::function<void()> OnClick;
 			} Events;
 			
-			void SetBackgroundColor(COLORREF color);
-			COLORREF GetBackgroundColor();
-
+			Brush background;
+			Border border;
 			Font font;
 			COLORREF foregroundColor = 0x000000;
-		protected:
+			Padding padding;
 			Position position;
-			HBRUSH backgroundBrush = nullptr;
-			COLORREF backgroundColor = 0;
-
+		protected:
 			virtual void render(ControlRenderInfo& controlRenderInfo);
 
 		private:
