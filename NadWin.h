@@ -145,29 +145,11 @@ namespace NW
 		};
 
 		struct ControlRenderInfo {
-			RECT* clientRect;
+			Render::Renderer* renderer;
 			HWND hwnd;
-			HDC hdc;
+			RECT* clientRect;
 		};
 		
-		class Brush 
-		{
-		public:
-			Brush() = default;
-			Brush(COLORREF color);
-			~Brush();
-
-			void SetColor(COLORREF color);
-			COLORREF GetColor();
-
-			const HBRUSH GetBrush();
-		private:
-			void update();
-
-			HBRUSH brush = nullptr;
-			COLORREF color = 0x000000;
-
-		};
 
 		class Font 
 		{
@@ -248,7 +230,6 @@ namespace NW
 			int top = 0;
 			int right = 0;
 			int bottom = 0;
-			Brush color;
 		};
 
 		// W�a�ciwe UI
@@ -293,13 +274,14 @@ namespace NW
 
 			void ReRender();
 
-			Brush background;
+			Render::Rgb background;
 		private:
 			void createWindow(std::wstring& WindowName, int x, int y, int width, int height);
 			LRESULT CALLBACK proc(UINT msg, LPARAM lParam, WPARAM wParam);
 
 			std::vector<Control*> controls;
 			HWND hwnd = nullptr;
+			Render::Renderer* renderer;
 
 			friend class App;
 			friend class Control;
@@ -316,7 +298,8 @@ namespace NW
 				std::function<void()> OnClick;
 			} Events;
 			
-			Brush background;
+			// background brush (SolidBrush by default)
+			Render::Brush* background;
 			Border border;
 			Font font;
 			COLORREF foregroundColor = 0x000000;
@@ -324,7 +307,9 @@ namespace NW
 			Position position;
 		protected:
 			virtual void render(ControlRenderInfo& controlRenderInfo);
-
+			Render::Renderer* GetWindowRenderer();
+			
+			Window* window;
 		private:
 			friend class Window;
 		};
@@ -332,8 +317,8 @@ namespace NW
 		class Button : public Control
 		{
 		public:
-			Button(Position position, std::string text);
-			Button(Position position, std::wstring text);
+			Button(Window* window, Position position, std::string text);
+			Button(Window* window, Position position, std::wstring text);
 			~Button();
 
 		private:

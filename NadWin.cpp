@@ -256,57 +256,6 @@ namespace NW
 			}
 		}
 
-		//
-		//
-		// class Brush
-		//
-		//
-
-		//
-		// public:
-		//
-
-		Brush::Brush(COLORREF color)
-		{
-			SetColor(color);
-		}
-
-		Brush::~Brush()
-		{
-			if (brush) DeleteObject(brush);
-		}
-
-		void Brush::SetColor(COLORREF color)
-		{
-			this->color = color;
-			update();
-		}
-
-		COLORREF Brush::GetColor()
-		{
-			return color;
-		}
-
-		const HBRUSH Brush::GetBrush()
-		{
-			return brush;
-		}
-
-		//
-		// private:
-		//
-
-		void Brush::update()
-		{
-			if (brush) {
-				DeleteObject(brush);
-				brush = nullptr;
-			}
-			brush = CreateSolidBrush(color);
-		}
-
-
-
 		std::wstring s2ws(std::string s)
 		{
 			std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
@@ -510,7 +459,6 @@ namespace NW
 			, top(top)
 			, right(right)
 			, bottom(bottom)
-			, color(color)
 		{
 
 		}
@@ -577,6 +525,7 @@ namespace NW
 			wcx.lpszClassName = AppName.c_str();
 			if (!RegisterClassExW(&wcx)) throw std::exception("Failed to register application class");
 			this->AppName = AppName;
+			Render::Renderer::Initialize();
 			initialized = true;
 		}
 
@@ -592,6 +541,7 @@ namespace NW
 				windowCount--;
 				if (windowCount <= 0)
 				{
+					Render::Renderer::Release();
 					PostQuitMessage(0);
 					return 0;
 				}
@@ -619,12 +569,12 @@ namespace NW
 		// public:
 		//
 
-		Window::Window(std::wstring WindowName, int x, int y, int width, int height) : background(0xffffff)
+		Window::Window(std::wstring WindowName, int x, int y, int width, int height)
 		{
 			createWindow(WindowName, x, y, width, height);
 		}
 
-		Window::Window(std::string WindowName, int x, int y, int width, int height) : background(0xffffff)
+		Window::Window(std::string WindowName, int x, int y, int width, int height)
 		{
 			std::wstring WindowNameW = s2ws(WindowName);
 			createWindow(WindowNameW, x, y, width, height);
@@ -632,6 +582,7 @@ namespace NW
 
 		Window::~Window()
 		{
+			if (renderer) delete renderer;
 			DestroyWindow(hwnd);
 		}
 
@@ -675,6 +626,7 @@ namespace NW
 			hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), static_cast<DWORD>(WindowStyles::OverlappedWindow), CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, nullptr, App::hInstance, nullptr);
 			if (!hwnd) throw std::exception("Failed to create window");
 			SetPropA(hwnd, "wClass", reinterpret_cast<HANDLE>(this));
+			renderer = new Render::Renderer(hwnd);
 			App::windowCount++;
 		}
 
@@ -686,26 +638,33 @@ namespace NW
 			{
 				return 1;
 			}
+			case WM_SIZE:
+			{
+				RECT rc;
+				GetClientRect(hwnd, &rc);
+				renderer->Resize(&rc);
+				break;
+			}
 			case WM_PAINT:
 			{
-				HDC dc = GetDC(hwnd);
-
 				ControlRenderInfo controlRenderInfo;
 				controlRenderInfo.hwnd = hwnd;
-				controlRenderInfo.hdc = dc;
 				RECT clientRect;
 				GetClientRect(hwnd, &clientRect);
 				controlRenderInfo.clientRect = &clientRect;
+				controlRenderInfo.renderer = renderer;
 
-				// background
-				FillRect(dc, &clientRect, background.GetBrush());
+				// tło
+				renderer->BeginDraw();
+				renderer->Clear(background);
 
 				for (auto const& control : controls)
 				{
 					control->render(controlRenderInfo);
 				}
 
-				ReleaseDC(hwnd, dc);
+				renderer->EndDraw();
+
 				break;
 			}
 			default:
@@ -725,7 +684,7 @@ namespace NW
 		// public:
 		//
 
-		Control::Control() : font(20, L"Segoe UI"), background(0xffffff), padding(0, 0, 0, 0), border(1, 1, 1, 1, 0x333333)
+		Control::Control() : font(20, L"Segoe UI"), padding(0, 0, 0, 0), border(1, 1, 1, 1, 0x333333)
 		{
 			
 		}
@@ -739,6 +698,11 @@ namespace NW
 			throw std::exception("Can't render pure control class");
 		}
 
+		Render::Renderer* Control::GetWindowRenderer()
+		{
+			return window->renderer;
+		}
+
 		//
 		//
 		// class Button
@@ -749,46 +713,39 @@ namespace NW
 		// public:
 		//
 
-		Button::Button(Position position, std::string text)
+		Button::Button(Window* window, Position position, std::string text)
 		{
+			this->window = window;
 			std::wstring ws = s2ws(text);
 			initialize(position, ws);
 		}
 
-		Button::Button(Position position, std::wstring text)
+		Button::Button(Window* window, Position position, std::wstring text)
 		{
+			this->window = window;
 			initialize(position, text);
 		}
 
 		Button::~Button()
 		{
-
+			if (background)
+			{
+				delete background;
+				background = nullptr;
+			}
 		}
 
 		void Button::initialize(Position& position, std::wstring& text)
 		{
+			background = reinterpret_cast<Render::Brush*>(new Render::SolidBrush(GetWindowRenderer(), Render::Rgb{ 0xea, 0xea, 0xea }));
 			this->position = position;
 			this->text = text;
 		}
 
-		void Button::render(ControlRenderInfo& controlRenderInfo)
+		void Button::render(ControlRenderInfo& CTI)
 		{
-			RECT controlRect = position.Rect();
-
-			// Background
-			RECT controlRectOffset = controlRect;
-			controlRectOffset.left += border.left;
-			controlRectOffset.top += border.top;
-			controlRectOffset.right += padding.left + padding.right + border.left + border.right;
-			controlRectOffset.bottom += padding.top + padding.bottom + border.top + border.bottom;
-
-			FillRect(controlRenderInfo.hdc, &controlRectOffset, background.GetBrush());
-			
-			// Text
-			SelectObject(controlRenderInfo.hdc, font.GetFont());
-			SetBkMode(controlRenderInfo.hdc, TRANSPARENT);
-			SetTextColor(controlRenderInfo.hdc, foregroundColor);
-			DrawTextExW(controlRenderInfo.hdc, const_cast<LPWSTR>(text.c_str()), text.length(), &controlRectOffset, DT_CENTER | DT_VCENTER | DT_SINGLELINE, nullptr);
+			RECT rc = position.Rect();
+			CTI.renderer->FillRect(&rc, background);
 		}
 	}
 	
