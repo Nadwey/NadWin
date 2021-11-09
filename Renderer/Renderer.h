@@ -13,6 +13,9 @@
 #include <Windows.h>
 #include <wingdi.h>
 #include <iostream>
+
+#undef DrawText
+
 namespace NW
 {
 	typedef unsigned char byte;
@@ -88,8 +91,8 @@ namespace NW
 			static void Release();
 
 			void Clear(Rgb color);
-			void DrawRect(RECT* rect, SolidBrush* brush, int strokeWidth);
-			void DrawText();
+			void DrawRect(RECT* rect, SolidBrush* border, int strokeWidth);
+			void DrawText(RECT* rect, std::);
 			void FillRect(RECT* rect, Brush* brush);
 		
 		private:

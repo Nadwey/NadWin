@@ -213,13 +213,13 @@ namespace NW
 #endif
 		}
 
-		void Renderer::DrawRect(RECT* rect, SolidBrush* brush,  int strokeWidth)
+		void Renderer::DrawRect(RECT* rect, SolidBrush* border,  int strokeWidth)
 		{
 #ifdef NW_RENDERER_USE_DIRECT2D
 			D2D1_RECT_F rectF = RectToRectF(rect);
-			pRT->DrawRectangle(rectF, brush->brush, strokeWidth);
+			pRT->DrawRectangle(rectF, border->brush, strokeWidth);
 #else
-			HPEN pen = CreatePen(PS_SOLID, strokeWidth, brush->color.ColorRef());
+			HPEN pen = CreatePen(PS_SOLID, strokeWidth, border->color.ColorRef());
 			SelectObject(dcMem, pen);
 
 			SelectObject(dcMem, GetStockObject(NULL_BRUSH));
