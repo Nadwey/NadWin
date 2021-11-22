@@ -1,4 +1,4 @@
 # TODO list
+- Więcej kontrolek
 
-- Szybsze rysowanie (np. Direct2D)
-- Renderowanie paddingu i bordera (help)
+*Ta lista się często zmienia*
