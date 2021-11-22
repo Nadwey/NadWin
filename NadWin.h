@@ -12,145 +12,14 @@
 #include <functional>
 #include <locale>
 #include <codecvt>
-#include <unordered_map>
-#include <memory>
 #include <vector>
-#include "Renderer/Renderer.h"
-
-#undef LoadImage
+#include <utility>
+#include <commctrl.h>
+#include "Graphics/Brushes.h"
 
 namespace NW
 {
-	struct Size
-	{
-		int width;
-		int height;
-	};
-
-	struct Pixel 
-	{
-		unsigned char r;
-		unsigned char g;
-		unsigned char b;
-	};
-
-	struct PixelBGR
-	{
-		unsigned char b;
-		unsigned char g;
-		unsigned char r;
-	};
-
-	struct Point
-	{
-		int x;
-		int y;
-	};
-
-	// GDI Bitmap (only RGB format supported)
-	class Bitmap
-	{
-	public:
-		// Tworzy DC na kt�rym mo�esz malowa�
-		Bitmap(int width, int height);
-
-		// Tworzy DC + �aduje do niego bitmape
-		Bitmap(std::string* FilePath);
-		Bitmap(std::wstring* FilePath);
-
-		~Bitmap();
-
-		// Rozmiar
-		int	GetWidth();
-		int	GetHeight();
-		Size GetSize();
-		
-
-		// Funkcje do pixeli
-		Pixel GetPixel(int x, int y);
-		PixelBGR& GetPixelRef(int x, int y);
-		void SetPixel(int x, int y, Pixel* pixel);
-		void SetPixel(int x, int y, Pixel* pixel, float opacity);
-		void SwapPixel(int x0, int y0, int x1, int y1);
-		Point ClipPixel(int x, int y);
-		// Sprawdza czy pixel jest w obrazie
-		bool IsValidPixel(int x, int y);
-		
-
-		// Rysowanie linii u�ywaj�c algorytmu Bresenhama
-		void DrawLineI(int x0, int y0, int x1, int y1, Pixel* pixel);
-
-		
-
-		// Zmienia rozmiar bez zawarto�ci (resetuje)
-		void Resize(int width, int height);
-		// Zmienia rozmiar z zawarto�ci� (kopiuje zawarto��, resetuje, wkleja kopie)
-		void ResizeWithContent(int width, int height);
-		/// <summary>
-		/// Je�eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
-		/// Je�eli argumenty SrcWidth lub SrcHeight b�d� r�wna� si� -1 to metoda zast�pi je wymiarami obrazu
-		/// </summary>
-		void Stretch(int xDest, int yDest, int DestWidth, int DestHeight, int xSrc, int ySrc, int SrcWidth = -1, int SrcHeight = -1, int quality = 0);
-		// Je�eli parametr quality nie jest zerem StretchBlt mode jest ustawiane na HALFTONE (potem zmieniane na poprzednie)
-		void Stretch(int DestWidth, int DestHeight, int quality = 0);
-
-
-		const HDC GetHDC();
-		const HBITMAP GetHBitmap();
-	private:
-		void Create(int width, int height);
-		void LoadImage(std::string& FilePath);
-		void LoadImage(std::wstring& FilePath);
-		void Delete();
-		BITMAPINFO GetBitmapInfo();
-		void CalculatePadding();
-		
-		HDC hdc;
-		HBITMAP hBitmap;
-		BITMAP bitmap;
-		int widthPadding = 0;
-	};
-
 	namespace UI {
-		void DoEvents();
-
-		enum class WindowStyles : DWORD {
-			Border = WS_BORDER,
-			Caption = WS_CAPTION,
-			Child = WS_CHILD,
-			ChildWindow = WS_CHILDWINDOW,
-			ClipChildren = WS_CLIPCHILDREN,
-			ClipSiblings = WS_CLIPSIBLINGS,
-			Disabled = WS_DISABLED,
-			DlgFrame = WS_DLGFRAME,
-			Group = WS_GROUP,
-			HScroll = WS_HSCROLL,
-			Iconic = WS_ICONIC,
-			Maximize = WS_MAXIMIZE,
-			MaximizeBox = WS_MAXIMIZEBOX,
-			Minimize = WS_MINIMIZE,
-			MinimizeBox = WS_MINIMIZEBOX,
-			Overlapped = WS_OVERLAPPED,
-			OverlappedWindow = WS_OVERLAPPEDWINDOW,
-			Popup = WS_POPUP,
-			PopupWindow = WS_POPUPWINDOW,
-			SizeBox = WS_SIZEBOX,
-			SysMenu = WS_SYSMENU,
-			TabStop = WS_TABSTOP,
-			ThickFrame = WS_THICKFRAME,
-			Tiled = WS_TILED,
-			TiledWindow = WS_TILEDWINDOW,
-			Visible = WS_VISIBLE,
-			VScroll = WS_VSCROLL
-		};
-
-		struct ControlRenderInfo {
-			Render::Renderer* renderer;
-			HWND hwnd;
-			RECT* clientRect;
-		};
-		
-
 		class Font 
 		{
 		public:
@@ -206,18 +75,6 @@ namespace NW
 			int height = 0;
 		};
 
-		class Padding
-		{
-		public:
-			Padding() = default;
-			Padding(int left, int top, int right, int bottom);
-
-			int left = 0;
-			int top = 0;
-			int right = 0;
-			int bottom = 0;
-		};
-
 		class Border
 		{
 		public:
@@ -241,14 +98,17 @@ namespace NW
 			~App();
 
 			int MessageLoop();
+			std::wstring GetAppName();
 
+			static void DoEvents();
 		private:
 			void registerClass(std::wstring&);
-			static LRESULT CALLBACK proc(HWND, UINT, LPARAM, WPARAM);
+			static LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 			static std::wstring AppName;
 			static HINSTANCE hInstance;
 			static unsigned long windowCount;
+			static bool initialized;
 
 			friend class Window;
 		};
@@ -268,23 +128,34 @@ namespace NW
 			void Move(int x, int y, int width, int height, bool repaint = true);
 			void Show();
 
-			// Control gets copied by reference!
 			void Add(Control* control);
-			void Remove(Control* button);
 
-			void ReRender();
-
-			Render::Rgb background;
+			void Repaint();
+			void* customData;
 		private:
 			void createWindow(std::wstring& WindowName, int x, int y, int width, int height);
-			LRESULT CALLBACK proc(UINT msg, LPARAM lParam, WPARAM wParam);
+			LRESULT CALLBACK proc(UINT msg, WPARAM wParam, LPARAM lParam);
 
-			std::vector<Control*> controls;
 			HWND hwnd = nullptr;
-			Render::Renderer* renderer;
 
 			friend class App;
 			friend class Control;
+		};
+
+		enum class EventTypes
+		{
+			Undefined = 0,
+			MouseLeftDoubleClick,
+			MouseLeftDown,
+			MouseLeftUp,
+			MouseMiddleDoubleClick,
+			MouseMiddleDown,
+			MouseMiddleUp,
+			MouseRightDoubleClick,
+			MouseRightDown,
+			MouseRightUp,
+			MouseOver,
+			MouseLeave
 		};
 
 		// Controls
@@ -292,24 +163,36 @@ namespace NW
 		class Control
 		{
 		public:
-			Control();
-			struct
-			{
-				std::function<void()> OnClick;
-			} Events;
-			
-			// background brush (SolidBrush by default)
-			Render::Brush* background;
-			Border border;
+			std::function<void(EventTypes, Control*, void*)> EventHandler;
+
+			void Repaint();
+
 			Font font;
-			COLORREF foregroundColor = 0x000000;
-			Padding padding;
-			Position position;
+			void UpdateFont();
+
+			Position GetPosition();
+			void SetPosition(Position position);
+
+			std::wstring GetText();
+			void SetText(std::string text);
+			void SetText(std::wstring text);
+
+			void Focus();
+			void RemoveFocus();
 		protected:
-			virtual void render(ControlRenderInfo& controlRenderInfo);
-			Render::Renderer* GetWindowRenderer();
-			
-			Window* window;
+			Control();
+
+			// (parent)
+			Window* window = nullptr;
+			HWND hwnd = nullptr;
+			bool isOver = false;
+			std::wstring text;
+			Position position;
+
+			virtual void create();
+			void updateText();
+
+			static LRESULT CALLBACK ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
 		private:
 			friend class Window;
 		};
@@ -323,9 +206,21 @@ namespace NW
 
 		private:
 			void initialize(Position& position, std::wstring& text);
-			void render(ControlRenderInfo& controlRenderInfo) override;
+			void create() override;
 
-			std::wstring text;
+			friend class Window;
+		};
+
+		class Static : public Control
+		{
+		public:
+			Static(Window* window, Position position, std::string text);
+			Static(Window* window, Position position, std::wstring text);
+			~Static();
+
+		private:
+			void initialize(Position& position, std::wstring& text);
+			void create() override;
 
 			friend class Window;
 		};
