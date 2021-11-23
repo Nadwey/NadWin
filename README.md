@@ -9,7 +9,7 @@ Biblioteka GUI działająca na WinAPI. Zrobiona ponieważ mi takiej brakowało.
 Przykład użycia:
 
 ```cpp
-#include "NadWin/NadWin.h"
+#include "src/NadWin/NadWin.h"
 
 #pragma comment(lib, "Comctl32.lib")
 
