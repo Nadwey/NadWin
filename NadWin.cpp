@@ -360,6 +360,22 @@ namespace NW
 
 		//
 		//
+		// struct ControlEventInfo
+		//
+		//
+
+		//
+		// public:
+		//
+
+		void ControlEventInfo::OverrideProcResult(LRESULT result)
+		{
+			overrideProcResult = true;
+			this->result = result;
+		}
+
+		//
+		//
 		// class Control
 		//
 		//
@@ -417,6 +433,11 @@ namespace NW
 			SetFocus(nullptr);
 		}
 
+		void Control::Destroy()
+		{
+			DestroyWindow(hwnd);
+		}
+
 		//
 		// protected:
 		//
@@ -434,8 +455,18 @@ namespace NW
 		LRESULT CALLBACK Control::ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 		{
 			Control* control = reinterpret_cast<Control*>(dwRefData);
+			ControlEventInfo controlEventInfo;
+			controlEventInfo.uMsg = msg;
+			controlEventInfo.wParam = wParam;
+			controlEventInfo.lParam = lParam;
+			controlEventInfo.control = control;
 			switch (msg)
 			{
+			case WM_DESTROY:
+			{
+				control->EventHandler(EventTypes::Destroy, &controlEventInfo);
+				break;
+			}
 			case WM_MOUSEMOVE:
 			{
 				TRACKMOUSEEVENT tme = { 0 };
@@ -447,51 +478,51 @@ namespace NW
 				if (control->isOver) break;
 				control->isOver = true;
 
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseOver, control, nullptr);
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseOver, &controlEventInfo);
 				break;
 			}
 			case WM_LBUTTONDBLCLK:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftDoubleClick, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftDoubleClick, &controlEventInfo);
+				break;
 			case WM_LBUTTONDOWN:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftDown, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftDown, &controlEventInfo);
+				break;
 			case WM_LBUTTONUP:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftUp, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftUp, &controlEventInfo);
+				break;
 			case WM_RBUTTONDBLCLK:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightDoubleClick, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightDoubleClick, &controlEventInfo);
+				break;
 			case WM_RBUTTONDOWN:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightDown, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightDown, &controlEventInfo);
+				break;
 			case WM_RBUTTONUP:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightUp, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightUp, &controlEventInfo);
+				break;
 			case WM_MBUTTONDBLCLK:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleDoubleClick, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleDoubleClick, &controlEventInfo);
+				break;
 			case WM_MBUTTONDOWN:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleDown, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleDown, &controlEventInfo);
+				break;
 			case WM_MBUTTONUP:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleUp, control, nullptr);
-				return 0;
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleUp, &controlEventInfo);
+				break;
 			case WM_MOUSELEAVE:
 			{
 				if (!control->isOver) break;
 				control->isOver = false;
 
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeave, control, nullptr);
+				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeave, &controlEventInfo);
 
 				break;
 			}
 			default:
-				std::tuple<UINT, WPARAM, LPARAM> data = { msg, wParam, lParam };
-				if (control->EventHandler) control->EventHandler(EventTypes::Undefined, control, reinterpret_cast<void*>(&data));
+				if (control->EventHandler) control->EventHandler(EventTypes::Undefined, &controlEventInfo);
 				break;
 			}
 
+			if (controlEventInfo.overrideProcResult) return controlEventInfo.result;
 			return DefSubclassProc(hwnd, msg, wParam, lParam);
 		}
 

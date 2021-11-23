@@ -155,15 +155,32 @@ namespace NW
 			MouseRightDown,
 			MouseRightUp,
 			MouseOver,
-			MouseLeave
+			MouseLeave,
+			Destroy
 		};
 
 		// Controls
 
+		struct ControlEventInfo {
+		public:
+			void OverrideProcResult(LRESULT result);
+
+			UINT uMsg;
+			WPARAM wParam;
+			LPARAM lParam;
+			Control* control;
+			void* additionalData;
+		private:
+			bool overrideProcResult = false;
+			LRESULT result;
+
+			friend class Control;
+		};
+
 		class Control
 		{
 		public:
-			std::function<void(EventTypes, Control*, void*)> EventHandler;
+			std::function<LRESULT(EventTypes, ControlEventInfo*)> EventHandler;
 
 			void Repaint();
 
@@ -179,6 +196,8 @@ namespace NW
 
 			void Focus();
 			void RemoveFocus();
+
+			void Destroy();
 		protected:
 			Control();
 
@@ -195,6 +214,7 @@ namespace NW
 			static LRESULT CALLBACK ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
 		private:
 			friend class Window;
+			friend ControlEventInfo;
 		};
 
 		class Button : public Control
