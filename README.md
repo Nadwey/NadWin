@@ -2,7 +2,7 @@
 
 Biblioteka GUI działająca na WinAPI. Zrobiona ponieważ mi takiej brakowało.
 
-![Example](./example/screen.png)
+![Example](./screen.png)
 
 ## Użycie
 
