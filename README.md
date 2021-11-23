@@ -44,5 +44,5 @@ int main()
 
 ## Status
 
-Klasa Bitmap + podstawowe okienka.
+Podstawowe okienka.
 **Nie używaj biblioteki z git clone, jedyne wersje jakim możesz ufać są w Releasach.**
