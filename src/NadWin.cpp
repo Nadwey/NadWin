@@ -223,7 +223,7 @@ namespace NW
 			initialized = false;
 		}
 
-		int App::MessageLoop()
+		WPARAM App::MessageLoop()
 		{
 			MSG msg;
 			while (GetMessage(&msg, NULL, 0, 0) != 0)
@@ -232,6 +232,11 @@ namespace NW
 				DispatchMessage(&msg);
 			}
 			return msg.wParam;
+		}
+
+		std::wstring App::GetAppName()
+		{
+			return AppName;
 		}
 
 		void App::DoEvents()
@@ -258,7 +263,7 @@ namespace NW
 
 			WNDCLASSEXW wcx = { 0 };
 
-			wcx.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
+			wcx.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
 			wcx.cbSize = sizeof(WNDCLASSEXW);
 			wcx.lpfnWndProc = reinterpret_cast<WNDPROC>(proc);
 			wcx.hInstance = hInstance;
@@ -283,6 +288,22 @@ namespace NW
 		HINSTANCE App::hInstance = nullptr;
 		unsigned long App::windowCount = 0;
 		bool App::initialized = false;
+
+		//
+		//
+		// struct WindowEventInfo
+		//
+		//
+
+		//
+		// public:
+		//
+
+		void WindowEventInfo::OverrideProcResult(LRESULT result)
+		{
+			overrideProcResult = true;
+			this->result = result;
+		}
 
 		//
 		//
@@ -349,12 +370,81 @@ namespace NW
 
 		LRESULT CALLBACK Window::proc(UINT msg, WPARAM wParam, LPARAM lParam)
 		{
+			WindowEventInfo windowEventInfo;
+			windowEventInfo.uMsg = msg;
+			windowEventInfo.wParam = wParam;
+			windowEventInfo.lParam = lParam;
+			windowEventInfo.control = this;
 			switch (msg)
 			{
+			case WM_CREATE:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::Create, &windowEventInfo);
+				break;
+			case WM_DESTROY:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::Destroy, &windowEventInfo);
+				break;
+			case WM_MOUSEMOVE:
+			{
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseMove, &windowEventInfo);
+
+				TRACKMOUSEEVENT tme = { 0 };
+				tme.cbSize = sizeof(tme);
+				tme.hwndTrack = this->hwnd;
+				tme.dwFlags = TME_LEAVE;
+				TrackMouseEvent(&tme);
+
+				if (this->isOver) break;
+				this->isOver = true;
+
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseOver, &windowEventInfo);
+				break;
+			}
+			case WM_LBUTTONDBLCLK:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseLeftDoubleClick, &windowEventInfo);
+				break;
+			case WM_LBUTTONDOWN:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseLeftDown, &windowEventInfo);
+				break;
+			case WM_LBUTTONUP:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseLeftUp, &windowEventInfo);
+				break;
+			case WM_RBUTTONDBLCLK:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseRightDoubleClick, &windowEventInfo);
+				break;
+			case WM_RBUTTONDOWN:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseRightDown, &windowEventInfo);
+				break;
+			case WM_RBUTTONUP:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseRightUp, &windowEventInfo);
+				break;
+			case WM_MBUTTONDBLCLK:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseMiddleDoubleClick, &windowEventInfo);
+				break;
+			case WM_MBUTTONDOWN:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseMiddleDown, &windowEventInfo);
+				break;
+			case WM_MBUTTONUP:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseMiddleUp, &windowEventInfo);
+				break;
+			case WM_MOUSELEAVE:
+				if (!this->isOver) break;
+				this->isOver = false;
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseLeave, &windowEventInfo);
+				break;
+			case WM_SETFOCUS:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::Focus, &windowEventInfo);
+				break;
+			case WM_KILLFOCUS:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::RemoveFocus, &windowEventInfo);
+				break;
+			case WM_COMMAND:
+				PostMessage(reinterpret_cast<HWND>(lParam), WM_COMMAND, wParam, lParam);
 			default:
+				if (this->EventHandler) this->EventHandler(WindowEventTypes::Undefined, &windowEventInfo);
 				break;
 			}
 
+			if (windowEventInfo.overrideProcResult) return windowEventInfo.result;
 			return DefWindowProc(hwnd, msg, wParam, lParam);
 		}
 
@@ -433,6 +523,11 @@ namespace NW
 			SetFocus(nullptr);
 		}
 
+		HWND Control::Hwnd()
+		{
+			return hwnd;
+		}
+
 		void Control::Destroy()
 		{
 			DestroyWindow(hwnd);
@@ -463,12 +558,15 @@ namespace NW
 			switch (msg)
 			{
 			case WM_DESTROY:
-			{
-				control->EventHandler(EventTypes::Destroy, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::Destroy, &controlEventInfo);
 				break;
-			}
+			case WM_CREATE:
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::Create, &controlEventInfo);
+				break;
 			case WM_MOUSEMOVE:
 			{
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMove, &controlEventInfo);
+
 				TRACKMOUSEEVENT tme = { 0 };
 				tme.cbSize = sizeof(tme);
 				tme.hwndTrack = control->hwnd;
@@ -478,47 +576,52 @@ namespace NW
 				if (control->isOver) break;
 				control->isOver = true;
 
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseOver, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseOver, &controlEventInfo);
 				break;
 			}
 			case WM_LBUTTONDBLCLK:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftDoubleClick, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftDoubleClick, &controlEventInfo);
 				break;
 			case WM_LBUTTONDOWN:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftDown, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftDown, &controlEventInfo);
 				break;
 			case WM_LBUTTONUP:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeftUp, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftUp, &controlEventInfo);
 				break;
 			case WM_RBUTTONDBLCLK:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightDoubleClick, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightDoubleClick, &controlEventInfo);
 				break;
 			case WM_RBUTTONDOWN:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightDown, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightDown, &controlEventInfo);
 				break;
 			case WM_RBUTTONUP:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseRightUp, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightUp, &controlEventInfo);
 				break;
 			case WM_MBUTTONDBLCLK:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleDoubleClick, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleDoubleClick, &controlEventInfo);
 				break;
 			case WM_MBUTTONDOWN:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleDown, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleDown, &controlEventInfo);
 				break;
 			case WM_MBUTTONUP:
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseMiddleUp, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleUp, &controlEventInfo);
 				break;
 			case WM_MOUSELEAVE:
-			{
 				if (!control->isOver) break;
 				control->isOver = false;
-
-				if (control->EventHandler) control->EventHandler(EventTypes::MouseLeave, &controlEventInfo);
-
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeave, &controlEventInfo);
 				break;
-			}
+			case WM_SETFOCUS:
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::Focus, &controlEventInfo);
+				break;
+			case WM_KILLFOCUS:
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::RemoveFocus, &controlEventInfo);
+				break;
+			case WM_COMMAND:
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::FromParent_Command, &controlEventInfo);
+				break;
 			default:
-				if (control->EventHandler) control->EventHandler(EventTypes::Undefined, &controlEventInfo);
+				if (control->EventHandler) control->EventHandler(ControlEventTypes::Undefined, &controlEventInfo);
 				break;
 			}
 
@@ -582,6 +685,72 @@ namespace NW
 			UpdateFont();
 		}
 
+		//
+		//
+		// class Checkbox
+		//
+		//
+
+		//
+		// public:
+		//
+
+		Checkbox::Checkbox(Window* window, Position position, std::string text)
+		{
+			this->window = window;
+			std::wstring ws = s2ws(text);
+			initialize(position, ws);
+		}
+
+		Checkbox::Checkbox(Window* window, Position position, std::wstring text)
+		{
+			this->window = window;
+			initialize(position, text);
+		}
+
+		Checkbox::~Checkbox()
+		{
+			if (hwnd)
+			{
+				DestroyWindow(hwnd);
+				hwnd = nullptr;
+			}
+		}
+
+		void Checkbox::SetChecked(bool checked)
+		{
+			PostMessageW(hwnd, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
+		}
+
+		bool Checkbox::GetChecked()
+		{
+			return SendMessage(hwnd, BM_GETCHECK, 0, 0) == BST_CHECKED;
+		}
+
+		void Checkbox::ToggleChecked()
+		{
+			SetChecked(!GetChecked());
+		}
+
+		//
+		// private:
+		//
+
+		void Checkbox::initialize(Position& position, std::wstring& text)
+		{
+			this->position = position;
+			SetPosition(position);
+			SetText(text);
+		}
+
+		void Checkbox::create()
+		{
+			hwnd = CreateWindowExW(0, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_CHECKBOX, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+			SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+			SetWindowSubclass(hwnd, Checkbox::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
+			UpdateFont();
+		}
+
 
 		//
 		//
@@ -629,13 +798,10 @@ namespace NW
 		{
 			hwnd = CreateWindowExW(0, L"STATIC", text.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
 			SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-			SetWindowSubclass(hwnd, Button::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
+			SetWindowSubclass(hwnd, Static::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
 			UpdateFont();
 		}
 	}
-	
-	
-	
 
 	//
 	//

@@ -97,7 +97,7 @@ namespace NW
 			App(std::string AppName);
 			~App();
 
-			int MessageLoop();
+			WPARAM MessageLoop();
 			std::wstring GetAppName();
 
 			static void DoEvents();
@@ -118,6 +118,43 @@ namespace NW
 		class Control;
 		class Button;
 
+		enum class WindowEventTypes
+		{
+			Undefined = 0,
+			MouseMove,
+			MouseLeftDoubleClick,
+			MouseLeftDown,
+			MouseLeftUp,
+			MouseMiddleDoubleClick,
+			MouseMiddleDown,
+			MouseMiddleUp,
+			MouseRightDoubleClick,
+			MouseRightDown,
+			MouseRightUp,
+			MouseOver,
+			MouseLeave,
+			Focus,
+			RemoveFocus,
+			Create,
+			Destroy
+		};
+
+		struct WindowEventInfo {
+		public:
+			void OverrideProcResult(LRESULT result);
+
+			UINT uMsg = 0;
+			WPARAM wParam = 0;
+			LPARAM lParam = 0;
+			Window* control = nullptr;
+			void* additionalData = nullptr;
+		private:
+			bool overrideProcResult = false;
+			LRESULT result = 0;
+
+			friend class Window;
+		};
+
 		class Window {
 		public:
 			Window(std::wstring WindowName, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
@@ -131,20 +168,24 @@ namespace NW
 			void Add(Control* control);
 
 			void Repaint();
-			void* customData;
+
+			std::function<void(WindowEventTypes, WindowEventInfo*)> EventHandler;
 		private:
 			void createWindow(std::wstring& WindowName, int x, int y, int width, int height);
 			LRESULT CALLBACK proc(UINT msg, WPARAM wParam, LPARAM lParam);
 
 			HWND hwnd = nullptr;
+			bool isOver = false;
 
 			friend class App;
 			friend class Control;
+			friend struct WindowEventInfo;
 		};
 
-		enum class EventTypes
+		enum class ControlEventTypes
 		{
 			Undefined = 0,
+			MouseMove,
 			MouseLeftDoubleClick,
 			MouseLeftDown,
 			MouseLeftUp,
@@ -156,7 +197,11 @@ namespace NW
 			MouseRightUp,
 			MouseOver,
 			MouseLeave,
-			Destroy
+			Focus,
+			RemoveFocus,
+			Create,
+			Destroy,
+			FromParent_Command // Odbierane z wyższego okna
 		};
 
 		// Controls
@@ -165,14 +210,14 @@ namespace NW
 		public:
 			void OverrideProcResult(LRESULT result);
 
-			UINT uMsg;
-			WPARAM wParam;
-			LPARAM lParam;
-			Control* control;
-			void* additionalData;
+			UINT uMsg = 0;
+			WPARAM wParam = 0;
+			LPARAM lParam = 0;
+			Control* control = nullptr;
+			void* additionalData = nullptr;
 		private:
 			bool overrideProcResult = false;
-			LRESULT result;
+			LRESULT result = 0;
 
 			friend class Control;
 		};
@@ -180,7 +225,7 @@ namespace NW
 		class Control
 		{
 		public:
-			std::function<LRESULT(EventTypes, ControlEventInfo*)> EventHandler;
+			std::function<void(ControlEventTypes, ControlEventInfo*)> EventHandler;
 
 			void Repaint();
 
@@ -197,6 +242,7 @@ namespace NW
 			void Focus();
 			void RemoveFocus();
 
+			HWND Hwnd();
 			void Destroy();
 		protected:
 			Control();
@@ -214,7 +260,7 @@ namespace NW
 			static LRESULT CALLBACK ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
 		private:
 			friend class Window;
-			friend ControlEventInfo;
+			friend struct ControlEventInfo;
 		};
 
 		class Button : public Control
@@ -227,8 +273,21 @@ namespace NW
 		private:
 			void initialize(Position& position, std::wstring& text);
 			void create() override;
+		};
 
-			friend class Window;
+		class Checkbox : public Control
+		{
+		public:
+			Checkbox(Window* window, Position position, std::string text);
+			Checkbox(Window* window, Position position, std::wstring text);
+			~Checkbox();
+
+			void SetChecked(bool checked);
+			bool GetChecked();
+			void ToggleChecked();
+		private:
+			void initialize(Position& position, std::wstring& text);
+			void create() override;
 		};
 
 		class Static : public Control
@@ -241,8 +300,6 @@ namespace NW
 		private:
 			void initialize(Position& position, std::wstring& text);
 			void create() override;
-
-			friend class Window;
 		};
 	}
 

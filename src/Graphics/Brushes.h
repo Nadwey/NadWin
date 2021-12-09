@@ -24,7 +24,7 @@ namespace NW {
 			void SetColor(Rgb color);
 			Rgb GetColor();
 
-			const HBRUSH const GetBrush();
+			const HBRUSH GetBrush();
 
 		private:
 			void update();

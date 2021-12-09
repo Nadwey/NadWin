@@ -55,7 +55,7 @@ namespace NW {
 			return color;
 		}
 
-		const HBRUSH const SolidBrush::GetBrush()
+		const HBRUSH SolidBrush::GetBrush()
 		{
 			return brush;
 		}
