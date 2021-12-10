@@ -11,14 +11,12 @@ namespace NW
         void AppendStyle(HWND hwnd, LONG style) 
         {
             LONG_PTR currentStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
-            if (currentStyle & style) return;
             SetWindowLongPtr(hwnd, GWL_STYLE, currentStyle | style);
         }
 
         void RemoveStyle(HWND hwnd, LONG style)
         {
             LONG_PTR currentStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
-            if (!(currentStyle & style)) return;
             SetWindowLongPtr(hwnd, GWL_STYLE, currentStyle & ~style);
         }
 
@@ -1344,54 +1342,5 @@ namespace NW
             SetWindowSubclass(hwnd, Static::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
         }
-    }
-
-    //
-    //
-    // class Random
-    //
-    //
-
-    //
-    // public:
-    //
-
-    Random::Random()
-    {
-        static bool first = true;
-        if (first)
-        {
-            srand(time(nullptr));
-            first = false;
-        }
-    }
-
-    inline int Random::Get()
-    {
-        return rand();
-    }
-
-    int Random::Get(int min, int max)
-    {
-        return min + rand() % ((max + 1) - min);
-    }
-
-    float Random::GetF()
-    {
-        return static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    }
-
-    float Random::GetF(float min, float max)
-    {
-        return GetF() * (max - min) + min;
-    }
-
-    double Random::GetD()
-    {
-        return static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
-    }
-    double Random::GetD(double min, double max)
-    {
-        return GetD() * (max - min) + min;
     }
 }

@@ -424,25 +424,6 @@ namespace NW
             void create() override;
         };
     }
-
-    // Klasa wywołuje srand! (Tylko raz na wszystkie instancje)
-    class Random
-    {
-    public:
-        Random();
-
-        // Dos�ownie rand()
-        inline int Get();
-        int Get(int min, int max);
-
-        // Zwraca losowy float w zakresie 0 - 1
-        float GetF();
-        float GetF(float min, float max);
-
-        // Zwraca losowe double w zakresie 0 - 1
-        double GetD();
-        double GetD(double min, double max);
-    };
 }
 
 
