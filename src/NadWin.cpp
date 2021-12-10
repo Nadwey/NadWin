@@ -3,6 +3,25 @@
 namespace NW
 {
     namespace UI {
+        bool HasStyle(HWND hwnd, LONG style)
+        {
+            return GetWindowLongPtr(hwnd, GWL_STYLE) & style;
+        }
+
+        void AppendStyle(HWND hwnd, LONG style) 
+        {
+            LONG_PTR currentStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
+            if (currentStyle & style) return;
+            SetWindowLongPtr(hwnd, GWL_STYLE, currentStyle | style);
+        }
+
+        void RemoveStyle(HWND hwnd, LONG style)
+        {
+            LONG_PTR currentStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
+            if (!(currentStyle & style)) return;
+            SetWindowLongPtr(hwnd, GWL_STYLE, currentStyle & ~style);
+        }
+
         std::wstring s2ws(std::string s)
         {
             std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
@@ -286,7 +305,6 @@ namespace NW
 
         std::wstring App::AppName = L"";
         HINSTANCE App::hInstance = nullptr;
-        unsigned long App::windowCount = 0;
         bool App::initialized = false;
 
         //
@@ -328,7 +346,9 @@ namespace NW
 
         Window::~Window()
         {
+            if (!hwnd) return;
             DestroyWindow(hwnd);
+            hwnd = nullptr;
         }
 
         const HWND Window::Hwnd()
@@ -777,47 +797,49 @@ namespace NW
             }
         }
 
-        size_t ComboBox::AddString(std::wstring str)
+        LRESULT ComboBox::AddString(std::wstring str)
         {
             return SendMessageW(hwnd, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(str.c_str()));
         }
 
         // Zwraca true jeśli operacja powiodła się
-        bool ComboBox::DeleteString(size_t index)
+        bool ComboBox::DeleteString(LRESULT index)
         {
             return SendMessageW(hwnd, CB_DELETESTRING, index, 0) != CB_ERR;
         }
 
         bool ComboBox::DeleteString(std::wstring str)
         {
-            DeleteString(FindString(str));
+            return DeleteString(FindString(str));
         }
 
-        size_t ComboBox::FindString(std::wstring str)
+        LRESULT ComboBox::FindString(std::wstring str)
         {
             return SendMessageW(hwnd, CB_FINDSTRINGEXACT, -1, reinterpret_cast<LPARAM>(str.c_str()));
         }
 
-        size_t ComboBox::GetCount()
+        LRESULT ComboBox::GetCount()
         {
             return SendMessageW(hwnd, CB_GETCOUNT, 0, 0);
         }
 
-        size_t ComboBox::GetStringLength(size_t index)
+        LRESULT ComboBox::GetStringLength(LRESULT index)
         {
             return SendMessageW(hwnd, CB_GETLBTEXTLEN, index, 0);
         }
 
-        std::wstring ComboBox::GetString(size_t index)
+        std::wstring ComboBox::GetString(LRESULT index)
         {
             std::wstring out;
-            size_t len = GetStringLength(index);
-            out.reserve(len + 1);
-            SendMessageW(hwnd, CB_GETLBTEXT, index, reinterpret_cast<LPARAM>(out.c_str()));
+            LRESULT len = GetStringLength(index);
+            WCHAR* buf = new WCHAR[len + 1];
+            SendMessageW(hwnd, CB_GETLBTEXT, index, reinterpret_cast<LPARAM>(buf));
+            out = buf;
+            delete[] buf;
             return out;
         }
 
-        size_t ComboBox::GetSelected()
+        LRESULT ComboBox::GetSelected()
         {
             return SendMessageW(hwnd, CB_GETCURSEL, 0, 0);
         }
@@ -827,7 +849,7 @@ namespace NW
             return GetString(GetSelected());
         }
 
-        void ComboBox::SetSelected(size_t index)
+        void ComboBox::SetSelected(LRESULT index)
         {
             SendMessage(hwnd, CB_SETCURSEL, index, 0);
         }
@@ -955,6 +977,321 @@ namespace NW
             hwnd = CreateWindowExW(0, DATETIMEPICK_CLASSW, text.c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | DTS_SHOWNONE, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, DatePicker::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
+            UpdateFont();
+        }
+
+        //
+        //
+        // class TextBoxBase
+        //
+        //
+
+        //
+        // public:
+        //
+
+        void TextBoxBase::SetTextAlign(TextBoxTextAlign align) {
+            switch (align)
+            {
+            case NW::UI::TextBoxTextAlign::Left:
+                AppendStyle(hwnd, ES_LEFT);
+                RemoveStyle(hwnd, ES_CENTER);
+                RemoveStyle(hwnd, ES_RIGHT);
+                break;
+            case NW::UI::TextBoxTextAlign::Center:
+                RemoveStyle(hwnd, ES_LEFT);
+                AppendStyle(hwnd, ES_CENTER);
+                RemoveStyle(hwnd, ES_RIGHT);
+                break;
+            case NW::UI::TextBoxTextAlign::Right:
+                RemoveStyle(hwnd, ES_LEFT);
+                RemoveStyle(hwnd, ES_CENTER);
+                AppendStyle(hwnd, ES_RIGHT);
+                break;
+            }
+        }
+
+        TextBoxTextAlign TextBoxBase::GetTextAlign()
+        {
+            if (HasStyle(hwnd, ES_LEFT)) return TextBoxTextAlign::Left;
+            if (HasStyle(hwnd, ES_CENTER)) return TextBoxTextAlign::Center;
+            if (HasStyle(hwnd, ES_RIGHT)) return TextBoxTextAlign::Right;
+            return TextBoxTextAlign::Left;
+        }
+
+        void TextBoxBase::SetReadOnly(bool readOnly)
+        {
+            SendMessage(hwnd, EM_SETREADONLY, static_cast<WPARAM>(readOnly), 0);
+        }
+
+        void TextBoxBase::SetSelection(Selection selection)
+        {
+            SendMessage(hwnd, EM_SETSEL, selection.start, selection.end);
+        }
+
+        Selection TextBoxBase::GetSelection()
+        {
+            Selection selection;
+            SendMessage(hwnd, EM_GETSEL, reinterpret_cast<WPARAM>(&selection.start), reinterpret_cast<WPARAM>(&selection.end));
+            return selection;
+        }
+
+        //
+        //
+        // class TextBoxMultiline
+        //
+        //
+
+        //
+        // public:
+        //
+
+        TextBoxMultiline::TextBoxMultiline(Window* window, Position position, std::string text)
+        {
+            this->window = window;
+            std::wstring ws = s2ws(text);
+            initialize(position, ws);
+        }
+
+        TextBoxMultiline::TextBoxMultiline(Window* window, Position position, std::wstring text)
+        {
+            this->window = window;
+            initialize(position, text);
+        }
+        TextBoxMultiline::~TextBoxMultiline()
+        {
+            if (hwnd)
+            {
+                DestroyWindow(hwnd);
+                hwnd = nullptr;
+            }
+        }
+
+        LRESULT TextBoxMultiline::GetLineIndex(LRESULT line)
+        {
+            return SendMessage(hwnd, EM_LINEINDEX, line, 0);
+        }
+
+        LRESULT TextBoxMultiline::GetLineLength(LRESULT line)
+        {
+            return SendMessage(hwnd, EM_LINELENGTH, GetLineIndex(line), 0);
+        }
+
+        LRESULT TextBoxMultiline::GetLineCount()
+        {
+            return SendMessage(hwnd, EM_GETLINECOUNT, 0, 0);
+        }
+
+        //
+        // private:
+        //
+
+        void TextBoxMultiline::initialize(Position& position, std::wstring& text)
+        {
+            this->position = position;
+            SetPosition(position);
+            SetText(text);
+        }
+
+        void TextBoxMultiline::create()
+        {
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            SetWindowSubclass(hwnd, TextBoxMultiline::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
+            UpdateFont();
+        }
+
+        //
+        //
+        // class TextBoxSingleline
+        //
+        //
+
+        //
+        // public:
+        //
+
+        TextBoxSingleline::TextBoxSingleline(Window* window, Position position, std::string text)
+        {
+            this->window = window;
+            std::wstring ws = s2ws(text);
+            initialize(position, ws);
+        }
+
+        TextBoxSingleline::TextBoxSingleline(Window* window, Position position, std::wstring text)
+        {
+            this->window = window;
+            initialize(position, text);
+        }
+        TextBoxSingleline::~TextBoxSingleline()
+        {
+            if (hwnd)
+            {
+                DestroyWindow(hwnd);
+                hwnd = nullptr;
+            }
+        }
+
+        void TextBoxSingleline::SetPasswordMode(bool passwordMode)
+        {
+            if (passwordMode) SendMessage(hwnd, EM_SETPASSWORDCHAR, 0x2022, 0);
+            else SendMessage(hwnd, EM_SETPASSWORDCHAR, 0, 0);
+        }
+
+        bool TextBoxSingleline::GetPasswordMode()
+        {
+            return SendMessage(hwnd, EM_GETPASSWORDCHAR, 0, 0);
+        }
+
+        //
+        // private:
+        //
+
+        void TextBoxSingleline::initialize(Position& position, std::wstring& text)
+        {
+            this->position = position;
+            SetPosition(position);
+            SetText(text);
+        }
+
+        void TextBoxSingleline::create()
+        {
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_PASSWORD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            SetWindowSubclass(hwnd, TextBoxSingleline::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
+            UpdateFont();
+            SetPasswordMode(false);
+        }
+
+        //
+        //
+        // class Static
+        //
+        //
+
+        //
+        // public:
+        //
+
+        ListBox::ListBox(Window* window, Position position, std::string text)
+        {
+            this->window = window;
+            std::wstring ws = s2ws(text);
+            initialize(position, ws);
+        }
+
+        ListBox::ListBox(Window* window, Position position, std::wstring text)
+        {
+            this->window = window;
+            initialize(position, text);
+        }
+        ListBox::~ListBox()
+        {
+            if (hwnd)
+            {
+                DestroyWindow(hwnd);
+                hwnd = nullptr;
+            }
+        }
+
+        LRESULT ListBox::AddString(std::wstring str)
+        {
+            return SendMessageW(hwnd, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(str.c_str()));
+        }
+
+        bool ListBox::DeleteString(LRESULT index)
+        {
+            return SendMessageW(hwnd, LB_ADDSTRING, index, 0) == LB_ERR;
+        }
+
+        bool ListBox::DeleteString(std::wstring str)
+        {
+            return DeleteString(FindString(str));
+        }
+
+        LRESULT ListBox::FindString(std::wstring str)
+        {
+            return SendMessageW(hwnd, LB_FINDSTRINGEXACT, -1, reinterpret_cast<LPARAM>(str.c_str()));
+        }
+        
+        LRESULT ListBox::GetCount()
+        {
+            return SendMessageW(hwnd, LB_GETCOUNT, 0, 0);
+        }
+
+        LRESULT ListBox::GetStringLength(LRESULT index)
+        {
+            LRESULT len = SendMessageW(hwnd, LB_GETTEXTLEN, index, 0);
+            if (len == LB_ERR) throw std::exception("Opcja nie istnieje");
+            return len;
+        }
+
+        std::wstring ListBox::GetString(LRESULT index)
+        {
+            std::wstring out;
+            LRESULT len = GetStringLength(index);
+            WCHAR* buf = new WCHAR[len + 1];
+            SendMessageW(hwnd, LB_GETTEXT, index, reinterpret_cast<LPARAM>(buf));
+            out = buf;
+            delete[] buf;
+            return out;
+        }
+
+        LRESULT ListBox::GetSelected()
+        {
+            LRESULT selected = SendMessageW(hwnd, LB_GETCURSEL, 0, 0);
+            if (selected == LB_ERR) throw std::exception("Zadna opcja nie jest wybrana, uzyj IsSelected()");
+            return selected;
+        }
+
+        std::wstring ListBox::GetSelectedString()
+        {
+            std::wstring str = GetString(GetSelected());
+            return str;
+        }
+
+        bool ListBox::IsSelected()
+        {
+            return SendMessageW(hwnd, LB_GETCURSEL, 0, 0) != LB_ERR;
+        }
+
+        void ListBox::SetSelected(LRESULT index)
+        {
+            SendMessageW(hwnd, LB_SETCURSEL, index, 0);
+        }
+
+        void ListBox::SetSelected(std::wstring str)
+        {
+            SetSelected(FindString(str));
+        }
+
+        void ListBox::SetSort(bool sort)
+        {
+            if (sort) AppendStyle(hwnd, LBS_SORT);
+            else RemoveStyle(hwnd, LBS_SORT);
+        }
+
+        bool ListBox::GetSort()
+        {
+            return HasStyle(hwnd, LBS_SORT);
+        }
+
+        //
+        // private:
+        //
+
+        void ListBox::initialize(Position& position, std::wstring& text)
+        {
+            this->position = position;
+            SetPosition(position);
+            SetText(text);
+        }
+
+        void ListBox::create()
+        {
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, text.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            SetWindowSubclass(hwnd, ListBox::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
         }
 

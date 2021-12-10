@@ -15,6 +15,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <commctrl.h>
+#include <iostream>
+
 
 namespace NW
 {
@@ -106,7 +108,6 @@ namespace NW
 
             static std::wstring AppName;
             static HINSTANCE hInstance;
-            static unsigned long windowCount;
             static bool initialized;
 
             friend class Window;
@@ -294,16 +295,16 @@ namespace NW
             ComboBox(Window* window, Position position, std::wstring text);
             ~ComboBox();
 
-            size_t			AddString(std::wstring str);
-            bool			DeleteString(size_t index);
+            LRESULT			AddString(std::wstring str);
+            bool			DeleteString(LRESULT index);
             bool			DeleteString(std::wstring str);
-            size_t			FindString(std::wstring str);
-            size_t			GetCount();
-            size_t			GetStringLength(size_t index);
-            std::wstring	GetString(size_t index);
-            size_t			GetSelected();
+            LRESULT			FindString(std::wstring str);
+            LRESULT			GetCount();
+            LRESULT			GetStringLength(LRESULT index);
+            std::wstring	GetString(LRESULT index);
+            LRESULT			GetSelected();
             std::wstring	GetSelectedString();
-            void			SetSelected(size_t index);
+            void			SetSelected(LRESULT index);
             void			SetSelected(std::wstring str);
             void			ShowDropdown(bool show);
 
@@ -332,6 +333,85 @@ namespace NW
             void create() override;
         };
 
+        enum class TextBoxTextAlign {
+            Left = 0,
+            Center,
+            Right
+        };
+
+        struct Selection {
+            DWORD start;
+            DWORD end;
+        };
+
+        class TextBoxBase : public Control {
+        public:
+            void SetTextAlign(TextBoxTextAlign align);
+            TextBoxTextAlign GetTextAlign();
+
+            void SetReadOnly(bool readOnly);
+            void SetSelection(Selection selection);
+            Selection GetSelection();
+        };
+
+        class TextBoxMultiline : public TextBoxBase
+        {
+        public:
+            TextBoxMultiline(Window* window, Position position, std::string text);
+            TextBoxMultiline(Window* window, Position position, std::wstring text);
+            ~TextBoxMultiline();
+
+            LRESULT GetLineIndex(LRESULT line);
+            LRESULT GetLineLength(LRESULT line);
+            LRESULT GetLineCount();
+
+        private:
+            void initialize(Position& position, std::wstring& text);
+            void create() override;
+        };
+
+        class TextBoxSingleline : public TextBoxBase
+        {
+        public:
+            TextBoxSingleline(Window* window, Position position, std::string text);
+            TextBoxSingleline(Window* window, Position position, std::wstring text);
+            ~TextBoxSingleline();
+
+            void SetPasswordMode(bool passwordMode);
+            bool GetPasswordMode();
+
+        private:
+            void initialize(Position& position, std::wstring& text);
+            void create() override;
+        };
+
+        class ListBox : public Control
+        {
+        public:
+            ListBox(Window* window, Position position, std::string text);
+            ListBox(Window* window, Position position, std::wstring text);
+            ~ListBox();
+
+            LRESULT			AddString(std::wstring str);
+            bool			DeleteString(LRESULT index);
+            bool			DeleteString(std::wstring str);
+            LRESULT			FindString(std::wstring str);
+            LRESULT			GetCount();
+            LRESULT			GetStringLength(LRESULT index);
+            std::wstring	GetString(LRESULT index);
+            LRESULT			GetSelected();
+            bool            IsSelected();
+            std::wstring	GetSelectedString();
+            void			SetSelected(LRESULT index);
+            void			SetSelected(std::wstring str);
+            void            SetSort(bool sort);
+            bool            GetSort();
+
+        private:
+            void initialize(Position& position, std::wstring& text);
+            void create() override;
+        };
+
         class Static : public Control
         {
         public:
@@ -345,7 +425,7 @@ namespace NW
         };
     }
 
-    // Klasa wywo�uje srand! (Tylko raz na wszystkie instancje)
+    // Klasa wywołuje srand! (Tylko raz na wszystkie instancje)
     class Random
     {
     public:
