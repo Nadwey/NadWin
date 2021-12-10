@@ -1,6 +1,6 @@
 # NadWin
 
-Biblioteka GUI działająca na WinAPI. Zrobiona ponieważ mi takiej brakowało.
+Biblioteka GUI działająca na WinAPI (właściwie to wrapper). Zrobiona ponieważ mi takiej brakowało.
 
 ![Example](./screen.png)
 
