@@ -5,18 +5,12 @@
 #define _NADWIN_
 
 #include <string>
-#include <time.h>
-#include <random>
-#include <math.h>
 #include <functional>
 #include <locale>
 #include <codecvt>
-#include <vector>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <commctrl.h>
-#include <iostream>
-
 
 namespace NW
 {
@@ -90,7 +84,7 @@ namespace NW
             int bottom = 0;
         };
 
-        // W�a�ciwe UI
+        // Właściwe UI
 
         class App {
         public:
@@ -115,6 +109,7 @@ namespace NW
 
         
         // Definicja definicji ;-;
+        class Window;
         class Control;
         class Button;
 
@@ -133,8 +128,13 @@ namespace NW
             MouseRightUp,
             MouseOver,
             MouseLeave,
+            KeyDown,
+            KeyUp,
+            KeyChar,
             Focus,
             RemoveFocus,
+            Move,
+            Size,
             Destroy
         };
 
@@ -161,6 +161,11 @@ namespace NW
             ~Window();
 
             const HWND Hwnd();
+
+            std::wstring GetText();
+            LRESULT GetTextLength();
+            void SetText(std::wstring text);
+
             void Move(int x, int y, int width, int height, bool repaint = true);
             void Show();
 
@@ -196,6 +201,9 @@ namespace NW
             MouseRightUp,
             MouseOver,
             MouseLeave,
+            KeyDown,
+            KeyUp,
+            KeyChar,
             Focus,
             RemoveFocus,
             Destroy,
@@ -223,6 +231,8 @@ namespace NW
         class Control
         {
         public:
+            ~Control();
+
             std::function<void(ControlEventTypes, ControlEventInfo*)> EventHandler;
 
             void Repaint();
@@ -234,7 +244,7 @@ namespace NW
             void SetPosition(Position position);
 
             std::wstring GetText();
-            void SetText(std::string text);
+            LRESULT GetTextLength();
             void SetText(std::wstring text);
 
             void Focus();
@@ -249,11 +259,11 @@ namespace NW
             Window* window = nullptr;
             HWND hwnd = nullptr;
             bool isOver = false;
-            std::wstring text;
+            std::wstring initText;
             Position position;
 
+            virtual void initialize(Position& position, std::wstring& text);
             virtual void create();
-            void updateText();
 
             static LRESULT CALLBACK ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
         private:
@@ -266,10 +276,8 @@ namespace NW
         public:
             Button(Window* window, Position position, std::string text);
             Button(Window* window, Position position, std::wstring text);
-            ~Button();
 
         private:
-            void initialize(Position& position, std::wstring& text);
             void create() override;
         };
 
@@ -278,13 +286,11 @@ namespace NW
         public:
             CheckBox(Window* window, Position position, std::string text);
             CheckBox(Window* window, Position position, std::wstring text);
-            ~CheckBox();
 
             void SetChecked(bool checked);
             bool GetChecked();
             void ToggleChecked();
         private:
-            void initialize(Position& position, std::wstring& text);
             void create() override;
         };
 
@@ -293,7 +299,6 @@ namespace NW
         public:
             ComboBox(Window* window, Position position, std::string text);
             ComboBox(Window* window, Position position, std::wstring text);
-            ~ComboBox();
 
             LRESULT			AddString(std::wstring str);
             bool			DeleteString(LRESULT index);
@@ -318,7 +323,6 @@ namespace NW
         public:
             DatePicker(Window* window, Position position, std::string text);
             DatePicker(Window* window, Position position, std::wstring text);
-            ~DatePicker();
 
             void SetTime(SYSTEMTIME time);
             SYSTEMTIME GetTime(bool* valid = nullptr);
@@ -329,7 +333,6 @@ namespace NW
             SYSTEMTIME GetMax();
 
         private:
-            void initialize(Position& position, std::wstring& text);
             void create() override;
         };
 
@@ -339,9 +342,9 @@ namespace NW
             Right
         };
 
-        struct Selection {
-            DWORD start;
-            DWORD end;
+        struct Range {
+            int start;
+            int end;
         };
 
         class TextBoxBase : public Control {
@@ -350,8 +353,8 @@ namespace NW
             TextBoxTextAlign GetTextAlign();
 
             void SetReadOnly(bool readOnly);
-            void SetSelection(Selection selection);
-            Selection GetSelection();
+            void SetSelection(Range selection);
+            Range GetSelection();
         };
 
         class TextBoxMultiline : public TextBoxBase
@@ -359,7 +362,6 @@ namespace NW
         public:
             TextBoxMultiline(Window* window, Position position, std::string text);
             TextBoxMultiline(Window* window, Position position, std::wstring text);
-            ~TextBoxMultiline();
 
             LRESULT GetLineIndex(LRESULT line);
             LRESULT GetLineLength(LRESULT line);
@@ -375,13 +377,11 @@ namespace NW
         public:
             TextBoxSingleline(Window* window, Position position, std::string text);
             TextBoxSingleline(Window* window, Position position, std::wstring text);
-            ~TextBoxSingleline();
 
             void SetPasswordMode(bool passwordMode);
             bool GetPasswordMode();
 
         private:
-            void initialize(Position& position, std::wstring& text);
             void create() override;
         };
 
@@ -390,7 +390,6 @@ namespace NW
         public:
             ListBox(Window* window, Position position, std::string text);
             ListBox(Window* window, Position position, std::wstring text);
-            ~ListBox();
 
             LRESULT			AddString(std::wstring str);
             bool			DeleteString(LRESULT index);
@@ -408,7 +407,32 @@ namespace NW
             bool            GetSort();
 
         private:
-            void initialize(Position& position, std::wstring& text);
+            void create() override;
+        };
+
+        enum class ProgressBarState {
+            Normal = 0,
+            Error,
+            Paused
+        };
+
+        class ProgressBar : public Control
+        {
+        public:
+            ProgressBar(Window* window, Position position, std::string text);
+            ProgressBar(Window* window, Position position, std::wstring text);
+
+            void SetRange(Range range);
+            Range GetRange();
+            void SetStep(int step);
+            int GetStep();
+            void Step();
+            void SetPos(int pos);
+            int GetPos();
+            void SetState(ProgressBarState state);
+            ProgressBarState GetState();
+            void SetMarquee(bool enabled, int updateTime = 30);
+        private:
             void create() override;
         };
 
@@ -417,10 +441,8 @@ namespace NW
         public:
             Static(Window* window, Position position, std::string text);
             Static(Window* window, Position position, std::wstring text);
-            ~Static();
 
         private:
-            void initialize(Position& position, std::wstring& text);
             void create() override;
         };
     }

@@ -5,19 +5,19 @@ namespace NW
     namespace UI {
         bool HasStyle(HWND hwnd, LONG style)
         {
-            return GetWindowLongPtr(hwnd, GWL_STYLE) & style;
+            return GetWindowLongPtrW(hwnd, GWL_STYLE) & style;
         }
 
         void AppendStyle(HWND hwnd, LONG style) 
         {
-            LONG_PTR currentStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
-            SetWindowLongPtr(hwnd, GWL_STYLE, currentStyle | style);
+            LONG_PTR currentStyle = GetWindowLongPtrW(hwnd, GWL_STYLE);
+            SetWindowLongPtrW(hwnd, GWL_STYLE, currentStyle | style);
         }
 
         void RemoveStyle(HWND hwnd, LONG style)
         {
-            LONG_PTR currentStyle = GetWindowLongPtr(hwnd, GWL_STYLE);
-            SetWindowLongPtr(hwnd, GWL_STYLE, currentStyle & ~style);
+            LONG_PTR currentStyle = GetWindowLongPtrW(hwnd, GWL_STYLE);
+            SetWindowLongPtrW(hwnd, GWL_STYLE, currentStyle & ~style);
         }
 
         std::wstring s2ws(std::string s)
@@ -243,7 +243,7 @@ namespace NW
         WPARAM App::MessageLoop()
         {
             MSG msg;
-            while (GetMessage(&msg, NULL, 0, 0) != 0)
+            while (GetMessage(&msg, nullptr, 0, 0) != 0)
             {
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
@@ -259,13 +259,12 @@ namespace NW
         void App::DoEvents()
         {
             MSG msg;
-            BOOL result;
 
-            while (::PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
+            while (::PeekMessageW(&msg, nullptr, 0, 0, PM_NOREMOVE))
             {
-                result = ::GetMessage(&msg, NULL, 0, 0);
+                ::GetMessageW(&msg, nullptr, 0, 0);
                 ::TranslateMessage(&msg);
-                ::DispatchMessage(&msg);
+                ::DispatchMessageW(&msg);
             }
         }
 
@@ -276,13 +275,13 @@ namespace NW
         void App::registerClass(std::wstring& AppName)
         {
             if (initialized) throw std::exception("Application class is arleady registered");
-            hInstance = reinterpret_cast<HINSTANCE>(GetModuleHandle(nullptr));
+            hInstance = static_cast<HINSTANCE>(GetModuleHandleW(nullptr));
 
             WNDCLASSEXW wcx = { 0 };
 
             wcx.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
             wcx.cbSize = sizeof(WNDCLASSEXW);
-            wcx.lpfnWndProc = reinterpret_cast<WNDPROC>(proc);
+            wcx.lpfnWndProc = static_cast<WNDPROC>(proc);
             wcx.hInstance = hInstance;
             wcx.hCursor = LoadCursorW(nullptr, IDC_ARROW);
             wcx.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
@@ -298,7 +297,7 @@ namespace NW
         {
             Window* windowHandle = reinterpret_cast<Window*>(GetWindowLongPtrA(hwnd, GWLP_USERDATA));
             if (windowHandle) return windowHandle->proc(msg, wParam, lParam);
-            return DefWindowProc(hwnd, msg, wParam, lParam);
+            return DefWindowProcW(hwnd, msg, wParam, lParam);
         }
 
         std::wstring App::AppName = L"";
@@ -308,6 +307,7 @@ namespace NW
         //
         //
         // struct WindowEventInfo
+        //
         //
         //
 
@@ -352,6 +352,27 @@ namespace NW
         const HWND Window::Hwnd()
         {
             return hwnd;
+        }
+
+        LRESULT Window::GetTextLength()
+        {
+            return SendMessageW(hwnd, WM_GETTEXTLENGTH, 0, 0);
+        }
+
+        std::wstring Window::GetText()
+        {
+            std::wstring out;
+            LRESULT len = GetTextLength();
+            WCHAR* buf = new WCHAR[len + 1];
+            SendMessageW(hwnd, WM_GETTEXT, len + 1, reinterpret_cast<LPARAM>(buf));
+            out = buf;
+            delete[] buf;
+            return out;
+        }
+
+        void Window::SetText(std::wstring text)
+        {
+            SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
         }
 
         void Window::Move(int x, int y, int width, int height, bool repaint)
@@ -446,21 +467,36 @@ namespace NW
                 this->isOver = false;
                 if (this->EventHandler) this->EventHandler(WindowEventTypes::MouseLeave, &windowEventInfo);
                 break;
+            case WM_KEYDOWN:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::KeyDown, &windowEventInfo);
+                break;
+            case WM_KEYUP:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::KeyUp, &windowEventInfo);
+                break;
+            case WM_CHAR:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::KeyChar, &windowEventInfo);
+                break;
             case WM_SETFOCUS:
                 if (this->EventHandler) this->EventHandler(WindowEventTypes::Focus, &windowEventInfo);
                 break;
             case WM_KILLFOCUS:
                 if (this->EventHandler) this->EventHandler(WindowEventTypes::RemoveFocus, &windowEventInfo);
                 break;
+            case WM_MOVE:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::Move, &windowEventInfo);
+                break;
+            case WM_SIZE:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::Size, &windowEventInfo);
+                break;
             case WM_COMMAND:
-                PostMessage(reinterpret_cast<HWND>(lParam), WM_COMMAND, wParam, lParam);
+                PostMessageW(reinterpret_cast<HWND>(lParam), WM_COMMAND, wParam, lParam);
             default:
                 if (this->EventHandler) this->EventHandler(WindowEventTypes::Undefined, &windowEventInfo);
                 break;
             }
 
             if (windowEventInfo.overrideProcResult) return windowEventInfo.result;
-            return DefWindowProc(hwnd, msg, wParam, lParam);
+            return DefWindowProcW(hwnd, msg, wParam, lParam);
         }
 
         //
@@ -489,6 +525,13 @@ namespace NW
         // public:
         //
 
+        Control::~Control()
+        {
+            if (!hwnd) return;
+            DestroyWindow(hwnd);
+            hwnd = nullptr;
+        }
+
         void Control::Repaint()
         {
             InvalidateRect(hwnd, nullptr, false);
@@ -496,7 +539,7 @@ namespace NW
 
         void Control::UpdateFont()
         {
-            SendMessage(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font.GetFont()), false);
+            SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font.GetFont()), false);
         }
 
         Position Control::GetPosition()
@@ -510,22 +553,25 @@ namespace NW
             MoveWindow(hwnd, position.x, position.y, position.width, position.height, false);
         }
 
-        std::wstring Control::GetText()
+        LRESULT Control::GetTextLength()
         {
-            return text;
+            return SendMessageW(hwnd, WM_GETTEXTLENGTH, 0, 0);
         }
 
-        void Control::SetText(std::string text)
+        std::wstring Control::GetText()
         {
-            std::wstring ws = s2ws(text);
-            this->text = ws;
-            updateText();
+            std::wstring out;
+            LRESULT len = GetTextLength();
+            WCHAR* buf = new WCHAR[len + 1];
+            SendMessageW(hwnd, WM_GETTEXT, len + 1, reinterpret_cast<LPARAM>(buf));
+            out = buf;
+            delete[] buf;
+            return out;
         }
 
         void Control::SetText(std::wstring text)
         {
-            this->text = text;
-            updateText();
+            SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
         }
 
         void Control::Focus()
@@ -555,6 +601,13 @@ namespace NW
         Control::Control() : font(20, L"Segoe UI")
         {
 
+        }
+
+        void Control::initialize(Position& position, std::wstring& text)
+        {
+            this->position = position;
+            SetPosition(position);
+            initText = text;
         }
 
         void Control::create()
@@ -623,6 +676,15 @@ namespace NW
                 control->isOver = false;
                 if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeave, &controlEventInfo);
                 break;
+            case WM_KEYDOWN:
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyDown, &controlEventInfo);
+                break;
+            case WM_KEYUP:
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyUp, &controlEventInfo);
+                break;
+            case WM_CHAR:
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyChar, &controlEventInfo);
+                break;
             case WM_SETFOCUS:
                 if (control->EventHandler) control->EventHandler(ControlEventTypes::Focus, &controlEventInfo);
                 break;
@@ -639,11 +701,6 @@ namespace NW
 
             if (controlEventInfo.overrideProcResult) return controlEventInfo.result;
             return DefSubclassProc(hwnd, msg, wParam, lParam);
-        }
-
-        void Control::updateText()
-        {
-            SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
         }
 
         //
@@ -669,29 +726,13 @@ namespace NW
             initialize(position, text);
         }
 
-        Button::~Button()
-        {
-            if (hwnd)
-            {
-                DestroyWindow(hwnd);
-                hwnd = nullptr;
-            }
-        }
-
         //
         // private:
         //
 
-        void Button::initialize(Position& position, std::wstring& text)
-        {
-            this->position = position;
-            SetPosition(position);
-            SetText(text);
-        }
-
         void Button::create()
         {
-            hwnd = CreateWindowExW(0, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, L"BUTTON", initText.c_str(), WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, Button::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
@@ -720,15 +761,6 @@ namespace NW
             initialize(position, text);
         }
 
-        CheckBox::~CheckBox()
-        {
-            if (hwnd)
-            {
-                DestroyWindow(hwnd);
-                hwnd = nullptr;
-            }
-        }
-
         void CheckBox::SetChecked(bool checked)
         {
             PostMessageW(hwnd, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -736,7 +768,7 @@ namespace NW
 
         bool CheckBox::GetChecked()
         {
-            return SendMessage(hwnd, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            return SendMessageW(hwnd, BM_GETCHECK, 0, 0) == BST_CHECKED;
         }
 
         void CheckBox::ToggleChecked()
@@ -748,16 +780,9 @@ namespace NW
         // private:
         //
 
-        void CheckBox::initialize(Position& position, std::wstring& text)
-        {
-            this->position = position;
-            SetPosition(position);
-            SetText(text);
-        }
-
         void CheckBox::create()
         {
-            hwnd = CreateWindowExW(0, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_CHECKBOX, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, L"BUTTON", initText.c_str(), WS_VISIBLE | WS_CHILD | BS_CHECKBOX, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, CheckBox::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
@@ -784,15 +809,6 @@ namespace NW
         {
             this->window = window;
             initialize(position, text);
-        }
-
-        ComboBox::~ComboBox()
-        {
-            if (hwnd)
-            {
-                DestroyWindow(hwnd);
-                hwnd = nullptr;
-            }
         }
 
         LRESULT ComboBox::AddString(std::wstring str)
@@ -875,7 +891,7 @@ namespace NW
 
         void ComboBox::create()
         {
-            hwnd = CreateWindowExW(0, WC_COMBOBOXW, text.c_str(), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, WC_COMBOBOXW, initText.c_str(), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, ComboBox::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
@@ -902,15 +918,6 @@ namespace NW
         {
             this->window = window;
             initialize(position, text);
-        }
-
-        DatePicker::~DatePicker()
-        {
-            if (hwnd)
-            {
-                DestroyWindow(hwnd);
-                hwnd = nullptr;
-            }
         }
 
         void DatePicker::SetTime(SYSTEMTIME time)
@@ -963,16 +970,9 @@ namespace NW
         // private:
         //
 
-        void DatePicker::initialize(Position& position, std::wstring& text)
-        {
-            this->position = position;
-            SetPosition(position);
-            SetText(text);
-        }
-
         void DatePicker::create()
         {
-            hwnd = CreateWindowExW(0, DATETIMEPICK_CLASSW, text.c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | DTS_SHOWNONE, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, DATETIMEPICK_CLASSW, initText.c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | DTS_SHOWNONE, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, DatePicker::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
@@ -1022,14 +1022,14 @@ namespace NW
             SendMessage(hwnd, EM_SETREADONLY, static_cast<WPARAM>(readOnly), 0);
         }
 
-        void TextBoxBase::SetSelection(Selection selection)
+        void TextBoxBase::SetSelection(Range selection)
         {
             SendMessage(hwnd, EM_SETSEL, selection.start, selection.end);
         }
 
-        Selection TextBoxBase::GetSelection()
+        Range TextBoxBase::GetSelection()
         {
-            Selection selection;
+            Range selection;
             SendMessage(hwnd, EM_GETSEL, reinterpret_cast<WPARAM>(&selection.start), reinterpret_cast<WPARAM>(&selection.end));
             return selection;
         }
@@ -1055,14 +1055,6 @@ namespace NW
         {
             this->window = window;
             initialize(position, text);
-        }
-        TextBoxMultiline::~TextBoxMultiline()
-        {
-            if (hwnd)
-            {
-                DestroyWindow(hwnd);
-                hwnd = nullptr;
-            }
         }
 
         LRESULT TextBoxMultiline::GetLineIndex(LRESULT line)
@@ -1093,7 +1085,7 @@ namespace NW
 
         void TextBoxMultiline::create()
         {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", initText.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, TextBoxMultiline::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
@@ -1121,14 +1113,6 @@ namespace NW
             this->window = window;
             initialize(position, text);
         }
-        TextBoxSingleline::~TextBoxSingleline()
-        {
-            if (hwnd)
-            {
-                DestroyWindow(hwnd);
-                hwnd = nullptr;
-            }
-        }
 
         void TextBoxSingleline::SetPasswordMode(bool passwordMode)
         {
@@ -1145,16 +1129,9 @@ namespace NW
         // private:
         //
 
-        void TextBoxSingleline::initialize(Position& position, std::wstring& text)
-        {
-            this->position = position;
-            SetPosition(position);
-            SetText(text);
-        }
-
         void TextBoxSingleline::create()
         {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_PASSWORD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", initText.c_str(), WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_PASSWORD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, TextBoxSingleline::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
@@ -1182,14 +1159,6 @@ namespace NW
         {
             this->window = window;
             initialize(position, text);
-        }
-        ListBox::~ListBox()
-        {
-            if (hwnd)
-            {
-                DestroyWindow(hwnd);
-                hwnd = nullptr;
-            }
         }
 
         LRESULT ListBox::AddString(std::wstring str)
@@ -1278,18 +1247,127 @@ namespace NW
         // private:
         //
 
-        void ListBox::initialize(Position& position, std::wstring& text)
-        {
-            this->position = position;
-            SetPosition(position);
-            SetText(text);
-        }
-
         void ListBox::create()
         {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, text.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, initText.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, ListBox::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
+            UpdateFont();
+        }
+
+        //
+        //
+        // class ProgressBar
+        //
+        //
+
+        //
+        // public:
+        //
+
+        ProgressBar::ProgressBar(Window* window, Position position, std::string text)
+        {
+            this->window = window;
+            std::wstring ws = s2ws(text);
+            initialize(position, ws);
+        }
+
+        ProgressBar::ProgressBar(Window* window, Position position, std::wstring text)
+        {
+            this->window = window;
+            initialize(position, text);
+        }
+
+        void ProgressBar::SetRange(Range range)
+        {
+            SendMessageW(hwnd, PBM_SETRANGE, 0, MAKELPARAM(range.start, range.end));
+        }
+
+        Range ProgressBar::GetRange()
+        {
+            PBRANGE range;
+            SendMessageW(hwnd, PBM_GETRANGE, 0, reinterpret_cast<LPARAM>(&range));
+            return Range{ range.iLow, range.iHigh };
+        }
+
+        void ProgressBar::SetStep(int step)
+        {
+            SendMessageW(hwnd, PBM_SETSTEP, step, 0);
+        }
+
+        int ProgressBar::GetStep()
+        {
+            return SendMessageW(hwnd, PBM_GETSTEP, 0, 0);
+        }
+
+        void ProgressBar::Step()
+        {
+            SendMessageW(hwnd, PBM_STEPIT, 0, 0);
+        }
+
+        void ProgressBar::SetPos(int pos)
+        {
+            SendMessageW(hwnd, PBM_SETPOS, pos, 0);
+        }
+
+        int ProgressBar::GetPos()
+        {
+            return SendMessageW(hwnd, PBM_GETPOS, 0, 0);
+        }
+
+        void ProgressBar::SetState(ProgressBarState state)
+        {
+            WPARAM wState;
+            switch (state)
+            {
+            case ProgressBarState::Normal:
+                wState = PBST_NORMAL;
+                break;
+            case ProgressBarState::Error:
+                wState = PBST_ERROR;
+                break;
+            case ProgressBarState::Paused:
+                wState = PBST_PAUSED;
+                break;
+            }
+            SendMessageW(hwnd, PBM_SETSTATE, wState, 0);
+        }
+
+        ProgressBarState ProgressBar::GetState()
+        {
+            WPARAM wState = SendMessageW(hwnd, PBM_GETSTATE, 0, 0);
+            ProgressBarState state = ProgressBarState::Normal;
+            switch (wState)
+            {
+            case PBST_NORMAL:
+                state = ProgressBarState::Normal;
+                break;
+            case PBST_ERROR:
+                state = ProgressBarState::Error;
+                break;
+            case PBST_PAUSED:
+                state = ProgressBarState::Paused;
+                break;
+            }
+            return state;
+        }
+
+        void ProgressBar::SetMarquee(bool enabled, int updateTime)
+        {
+            if (enabled) AppendStyle(hwnd, PBS_MARQUEE);
+            else RemoveStyle(hwnd, PBS_MARQUEE);
+            SendMessageW(hwnd, PBM_SETMARQUEE, enabled, updateTime);
+        }
+
+        //
+        // private:
+        //
+
+        void ProgressBar::create()
+        {
+            hwnd = CreateWindowExW(0, PROGRESS_CLASSW, initText.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            SetWindowSubclass(hwnd, ProgressBar::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
         }
 
@@ -1315,29 +1393,14 @@ namespace NW
             this->window = window;
             initialize(position, text);
         }
-        Static::~Static()
-        {
-            if (hwnd)
-            {
-                DestroyWindow(hwnd);
-                hwnd = nullptr;
-            }
-        }
 
         //
         // private:
         //
 
-        void Static::initialize(Position& position, std::wstring& text)
-        {
-            this->position = position;
-            SetPosition(position);
-            SetText(text);
-        }
-
         void Static::create()
         {
-            hwnd = CreateWindowExW(0, L"STATIC", text.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, L"STATIC", initText.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
             SetWindowSubclass(hwnd, Static::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
             UpdateFont();
