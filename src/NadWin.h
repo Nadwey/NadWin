@@ -240,9 +240,6 @@ namespace NW
             Font font;
             void UpdateFont();
 
-            Position GetPosition();
-            void SetPosition(Position position);
-
             virtual std::wstring GetText();
             virtual LRESULT GetTextLength();
             virtual void SetText(std::wstring text);
@@ -252,6 +249,9 @@ namespace NW
 
             HWND Hwnd();
             void Destroy();
+
+            Position GetPosition();
+            void SetPosition(Position position, bool repaint = true);
         protected:
             Control();
 
@@ -410,6 +410,8 @@ namespace NW
             void			SetSelected(std::wstring str);
             void            SetSort(bool sort);
             bool            GetSort();
+            void            SetTopIndex(LRESULT index);
+            LRESULT         GetTopIndex();
 
         private:
             void create() override;

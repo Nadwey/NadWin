@@ -22,9 +22,14 @@ namespace NW
 
         std::wstring s2ws(std::string s)
         {
-            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-            std::wstring ws = converter.from_bytes(s);
-            return ws;
+            int len;
+            int slength = (int)s.length() + 1;
+            len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0);
+            wchar_t* buf = new wchar_t[len];
+            MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, buf, len);
+            std::wstring r(buf);
+            delete[] buf;
+            return r;
         }
 
         //
@@ -373,7 +378,8 @@ namespace NW
 
         void Window::SetText(std::wstring text)
         {
-            if (SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()))) throw std::exception("Failed to set text");
+            LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
+            if (!result) throw std::exception("Failed to set text");
         }
 
         void Window::Move(int x, int y, int width, int height, bool repaint)
@@ -543,17 +549,6 @@ namespace NW
             SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font.GetFont()), false);
         }
 
-        Position Control::GetPosition()
-        {
-            return position;
-        }
-
-        void Control::SetPosition(Position position)
-        {
-            this->position = position;
-            MoveWindow(hwnd, position.x, position.y, position.width, position.height, false);
-        }
-
         LRESULT Control::GetTextLength()
         {
             return SendMessageW(hwnd, WM_GETTEXTLENGTH, 0, 0);
@@ -572,7 +567,8 @@ namespace NW
 
         void Control::SetText(std::wstring text)
         {
-            SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
+            LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
+            if (!result) throw std::exception("Failed to set text");
         }
 
         void Control::Focus()
@@ -593,6 +589,18 @@ namespace NW
         void Control::Destroy()
         {
             DestroyWindow(hwnd);
+        }
+
+        void Control::SetPosition(Position position, bool repaint)
+        {
+            MoveWindow(hwnd, position.x, position.y, position.width, position.height, repaint);
+        }
+
+        Position Control::GetPosition()
+        {
+            RECT rc;
+            GetWindowRect(hwnd, &rc);
+            return Position(&rc);
         }
 
         //
@@ -1265,6 +1273,18 @@ namespace NW
         bool ListBox::GetSort()
         {
             return HasStyle(hwnd, LBS_SORT);
+        }
+
+        void ListBox::SetTopIndex(LRESULT index)
+        {
+            LRESULT result = SendMessageW(hwnd, LB_SETTOPINDEX, index, 0);
+            if (result == LB_ERR) throw std::exception("Failed to set top index");
+        }
+
+        LRESULT ListBox::GetTopIndex()
+        {
+            LRESULT result = SendMessageW(hwnd, LB_GETTOPINDEX, 0, 0);
+            return result;
         }
 
         //
