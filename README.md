@@ -6,7 +6,7 @@ Biblioteka GUI działająca na WinAPI (właściwie to wrapper). Zrobiona poniewa
 
 ## Użycie
 
-Przykład użycia:
+Przykład użycia (MSVC):
 
 ```cpp
 #include "NadWin/src/NadWin.h"
