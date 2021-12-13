@@ -1,5 +1,7 @@
 ﻿#include "NadWin.h"
 
+#if !(_WIN32_WINNT < 0x0501)
+
 namespace NW
 {
     namespace UI {
@@ -142,7 +144,7 @@ namespace NW
         {
             if (font) DeleteObject(font);
             font = CreateFontW(height, width, 0, 0, 0, italic, underline, strike, 0, 0, 0, ANTIALIASED_QUALITY, 0, faceName.c_str());
-            if (!font) throw std::exception("Failed to create font");
+            if (!font) throw std::runtime_error("Failed to create font");
         }
 
 
@@ -280,7 +282,7 @@ namespace NW
 
         void App::registerClass(std::wstring& AppName)
         {
-            if (initialized) throw std::exception("Application class is arleady registered");
+            if (initialized) throw std::runtime_error("Application class is arleady registered");
             hInstance = static_cast<HINSTANCE>(GetModuleHandleW(nullptr));
 
             WNDCLASSEXW wcx = { 0 };
@@ -294,7 +296,7 @@ namespace NW
             wcx.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);
             wcx.lpszClassName = AppName.c_str();
 
-            if (!RegisterClassExW(&wcx)) throw std::exception("Failed to register application class");
+            if (!RegisterClassExW(&wcx)) throw std::runtime_error("Failed to register application class");
             this->AppName = AppName;
             initialized = true;
         }
@@ -379,7 +381,7 @@ namespace NW
         void Window::SetText(std::wstring text)
         {
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
-            if (!result) throw std::exception("Failed to set text");
+            if (!result) throw std::runtime_error("Failed to set text");
         }
 
         void Window::Move(int x, int y, int width, int height, bool repaint)
@@ -410,7 +412,7 @@ namespace NW
         void Window::createWindow(std::wstring& WindowName, int x, int y, int width, int height)
         {
             hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), WS_OVERLAPPEDWINDOW, x, y, width, height, nullptr, nullptr, App::hInstance, nullptr);
-            if (!hwnd) throw std::exception("Failed to create window");
+            if (!hwnd) throw std::runtime_error("Failed to create window");
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
         }
 
@@ -497,6 +499,7 @@ namespace NW
                 break;
             case WM_COMMAND:
                 PostMessageW(reinterpret_cast<HWND>(lParam), WM_COMMAND, wParam, lParam);
+                break;
             default:
                 if (this->EventHandler) this->EventHandler(WindowEventTypes::Undefined, &windowEventInfo);
                 break;
@@ -544,9 +547,14 @@ namespace NW
             InvalidateRect(hwnd, nullptr, false);
         }
 
-        void Control::UpdateFont()
+        void Control::SetFont(Font* font)
         {
-            SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font.GetFont()), false);
+            SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font->GetFont()), false);
+        }
+
+        void Control::SetFont(Font font)
+        {
+            SetFont(&font);
         }
 
         LRESULT Control::GetTextLength()
@@ -568,7 +576,7 @@ namespace NW
         void Control::SetText(std::wstring text)
         {
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
-            if (!result) throw std::exception("Failed to set text");
+            if (!result) throw std::runtime_error("Failed to set text");
         }
 
         void Control::Focus()
@@ -607,7 +615,7 @@ namespace NW
         // protected:
         //
 
-        Control::Control() : font(20, L"Segoe UI")
+        Control::Control()
         {
 
         }
@@ -621,15 +629,14 @@ namespace NW
 
         void Control::create()
         {
-            throw std::exception("Can't create pure control class");
+            throw std::runtime_error("Can't create pure control class");
         }
 
         void Control::setWindowValues()
         {
-            if (!hwnd) throw std::exception("Failed to create");
+            if (!hwnd) throw std::runtime_error("Failed to create");
             BOOL subClassResult = SetWindowSubclass(hwnd, Control::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            if (!subClassResult) throw std::exception("Failed to set sub class");
-            UpdateFont();
+            if (!subClassResult) throw std::runtime_error("Failed to set sub class");
         }
 
         LRESULT CALLBACK Control::ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
@@ -814,7 +821,7 @@ namespace NW
         void ComboBox::SetText(std::wstring text)
         {
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
-            if (result == CB_ERRSPACE) throw std::exception("Failed to set text");
+            if (result == CB_ERRSPACE) throw std::runtime_error("Failed to set text");
         }
 
         ComboBox::ComboBox(Window* window, Position position, std::string text)
@@ -838,7 +845,7 @@ namespace NW
         // Zwraca true jeśli operacja powiodła się
         void ComboBox::DeleteString(LRESULT index)
         {
-            if (SendMessageW(hwnd, CB_DELETESTRING, index, 0) == CB_ERR) throw std::exception("Failed to delete string");
+            if (SendMessageW(hwnd, CB_DELETESTRING, index, 0) == CB_ERR) throw std::runtime_error("Failed to delete string");
         }
 
         void ComboBox::DeleteString(std::wstring str)
@@ -884,14 +891,14 @@ namespace NW
 
         void ComboBox::SetSelected(LRESULT index)
         {
-            if (index > GetCount()) throw std::exception("Index is greater than item count");
+            if (index > GetCount()) throw std::runtime_error("Failed to set selected");
             LRESULT result = SendMessageW(hwnd, CB_SETCURSEL, index, 0);
         }
 
         void ComboBox::SetSelected(std::wstring str)
         {
             LRESULT result = SendMessageW(hwnd, CB_SELECTSTRING, -1, reinterpret_cast<LPARAM>(str.c_str()));
-            if (result == CB_ERR) throw std::exception("String not found");
+            if (result == CB_ERR) throw std::runtime_error("String not found");
         }
 
         void ComboBox::ShowDropdown(bool show)
@@ -942,7 +949,7 @@ namespace NW
         void DatePicker::SetTime(SYSTEMTIME time)
         {
             LRESULT result = SendMessageW(hwnd, DTM_SETSYSTEMTIME, GDT_VALID, reinterpret_cast<LPARAM>(&time));
-            if (result == false) throw std::exception("Failed to set time");
+            if (result == false) throw std::runtime_error("Failed to set time");
         }
 
         SYSTEMTIME DatePicker::GetTime(bool* valid)
@@ -956,7 +963,7 @@ namespace NW
         void DatePicker::SetFormat(std::wstring format)
         {
             LRESULT result = SendMessageW(hwnd, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(format.c_str()));
-            if (result == false) throw std::exception("Failed to set format");
+            if (result == false) throw std::runtime_error("Failed to set format");
         }
 
         void DatePicker::SetMin(SYSTEMTIME time)
@@ -964,7 +971,7 @@ namespace NW
             SYSTEMTIME times[2];
             times[0] = time;
             LRESULT result = SendMessageW(hwnd, DTM_SETRANGE, GDTR_MIN, reinterpret_cast<LPARAM>(&times));
-            if (result == false) throw std::exception("Failed to set min");
+            if (result == false) throw std::runtime_error("Failed to set min");
         }
 
         void DatePicker::SetMax(SYSTEMTIME time)
@@ -972,14 +979,14 @@ namespace NW
             SYSTEMTIME times[2];
             times[1] = time;
             LRESULT result = SendMessageW(hwnd, DTM_SETRANGE, GDTR_MAX, reinterpret_cast<LPARAM>(&times));
-            if (result == false) throw std::exception("Failed to set max");
+            if (result == false) throw std::runtime_error("Failed to set max");
         }
 
         SYSTEMTIME DatePicker::GetMin()
         {
             SYSTEMTIME times[2];
             LRESULT result = SendMessageW(hwnd, DTM_GETRANGE, 0, reinterpret_cast<LPARAM>(&times));
-            if (result == false) throw std::exception("Failed to get min");
+            if (result == false) throw std::runtime_error("Failed to get min");
             return times[0];
         }
 
@@ -987,7 +994,7 @@ namespace NW
         {
             SYSTEMTIME times[2];
             LRESULT result = SendMessageW(hwnd, DTM_GETRANGE, 0, reinterpret_cast<LPARAM>(&times));
-            if (result == false) throw std::exception("Failed to get max");
+            if (result == false) throw std::runtime_error("Failed to get max");
             return times[1];
         }
 
@@ -1043,7 +1050,7 @@ namespace NW
         void TextBoxBase::SetReadOnly(bool readOnly)
         {
             LRESULT result = SendMessageW(hwnd, EM_SETREADONLY, static_cast<WPARAM>(readOnly), 0);
-            if (result == false) throw std::exception("Failed to set read only");
+            if (result == false) throw std::runtime_error("Failed to set read only");
         }
 
         void TextBoxBase::SetSelection(Range selection)
@@ -1184,20 +1191,20 @@ namespace NW
         void ListBox::SetText(std::wstring text)
         {
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
-            if (result == LB_ERRSPACE) throw std::exception("Failed to set text");
+            if (result == LB_ERRSPACE) throw std::runtime_error("Failed to set text");
         }
 
         LRESULT ListBox::AddString(std::wstring str)
         {
             LRESULT result = SendMessageW(hwnd, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(str.c_str()));
-            if (result == LB_ERR) throw std::exception("Failed to add string");
+            if (result == LB_ERR) throw std::runtime_error("Failed to add string");
             return result;
         }
 
         void ListBox::DeleteString(LRESULT index)
         {
             LRESULT result = SendMessageW(hwnd, LB_DELETESTRING, index, 0);
-            if (result == LB_ERR) throw std::exception("Failed to delete string, index greater than item count");
+            if (result == LB_ERR) throw std::runtime_error("Failed to delete string, index greater than item count");
         }
 
         void ListBox::DeleteString(std::wstring str)
@@ -1208,7 +1215,7 @@ namespace NW
         LRESULT ListBox::FindString(std::wstring str)
         {
             LRESULT result = SendMessageW(hwnd, LB_FINDSTRINGEXACT, -1, reinterpret_cast<LPARAM>(str.c_str()));
-            if (result == LB_ERR) throw std::exception("Failed to find string");
+            if (result == LB_ERR) throw std::runtime_error("Failed to find string");
             return result;
         }
         
@@ -1220,7 +1227,7 @@ namespace NW
         LRESULT ListBox::GetStringLength(LRESULT index)
         {
             LRESULT len = SendMessageW(hwnd, LB_GETTEXTLEN, index, 0);
-            if (len == LB_ERR) throw std::exception("Opcja nie istnieje");
+            if (len == LB_ERR) throw std::runtime_error("Opcja nie istnieje");
             return len;
         }
 
@@ -1238,7 +1245,7 @@ namespace NW
         LRESULT ListBox::GetSelected()
         {
             LRESULT selected = SendMessageW(hwnd, LB_GETCURSEL, 0, 0);
-            if (selected == LB_ERR) throw std::exception("Failed to get selected option, try using IsSelected()");
+            if (selected == LB_ERR) throw std::runtime_error("Failed to get selected option, try using IsSelected()");
             return selected;
         }
 
@@ -1256,7 +1263,7 @@ namespace NW
         void ListBox::SetSelected(LRESULT index)
         {
             LRESULT result = SendMessageW(hwnd, LB_SETCURSEL, index, 0);
-            if (result == LB_ERR) throw std::exception("Failed to set selected");
+            if (result == LB_ERR) throw std::runtime_error("Failed to set selected");
         }
 
         void ListBox::SetSelected(std::wstring str)
@@ -1278,7 +1285,7 @@ namespace NW
         void ListBox::SetTopIndex(LRESULT index)
         {
             LRESULT result = SendMessageW(hwnd, LB_SETTOPINDEX, index, 0);
-            if (result == LB_ERR) throw std::exception("Failed to set top index");
+            if (result == LB_ERR) throw std::runtime_error("Failed to set top index");
         }
 
         LRESULT ListBox::GetTopIndex()
@@ -1296,6 +1303,8 @@ namespace NW
             hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, initText.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
+
+#if _WIN32_WINNT >= 0x0600
 
         //
         //
@@ -1323,7 +1332,7 @@ namespace NW
         void ProgressBar::SetRange(Range range)
         {
             LRESULT result = SendMessageW(hwnd, PBM_SETRANGE, 0, MAKELPARAM(range.start, range.end));
-            if (result == false) throw std::exception("Failed to set range");
+            if (result == false) throw std::runtime_error("Failed to set range");
         }
 
         Range ProgressBar::GetRange()
@@ -1411,6 +1420,7 @@ namespace NW
             hwnd = CreateWindowExW(0, PROGRESS_CLASSW, initText.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
+#endif
 
         //
         //
@@ -1446,3 +1456,5 @@ namespace NW
         }
     }
 }
+
+#endif

@@ -4,18 +4,28 @@
 #ifndef _NADWIN_
 #define _NADWIN_
 
+#ifndef UNICODE
+#define UNICODE
+#endif
+
 #include <string>
 #include <functional>
 #include <locale>
 #include <codecvt>
+#include <exception>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <commctrl.h>
 
+#if _WIN32_WINNT < 0x0501
+#error Minimum _WIN32_WINNT version is 0x0501 (Windows XP)
+// You can try to define your own version above #include <windows.h>
+#else
+
 namespace NW
 {
     namespace UI {
-        class Font 
+        class Font
         {
         public:
             Font() = default;
@@ -107,7 +117,7 @@ namespace NW
             friend class Window;
         };
 
-        
+
         // Definicja definicji ;-;
         class Window;
         class Control;
@@ -237,8 +247,8 @@ namespace NW
 
             void Repaint();
 
-            Font font;
-            void UpdateFont();
+            void SetFont(Font* font);
+            void SetFont(Font font);
 
             virtual std::wstring GetText();
             virtual LRESULT GetTextLength();
@@ -423,6 +433,8 @@ namespace NW
             Paused
         };
 
+#if _WIN32_WINNT >= 0x0600
+
         class ProgressBar : public Control
         {
         public:
@@ -443,6 +455,8 @@ namespace NW
             void create() override;
         };
 
+#endif
+
         class Static : public Control
         {
         public:
@@ -454,6 +468,6 @@ namespace NW
         };
     }
 }
-
+#endif
 
 #endif // !_NADWIN_
