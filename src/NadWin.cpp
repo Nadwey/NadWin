@@ -137,6 +137,7 @@ namespace NW
         {
             if (font) DeleteObject(font);
             font = CreateFontW(height, width, 0, 0, 0, italic, underline, strike, 0, 0, 0, ANTIALIASED_QUALITY, 0, faceName.c_str());
+            if (!font) throw std::exception("Failed to create font");
         }
 
 
@@ -372,7 +373,7 @@ namespace NW
 
         void Window::SetText(std::wstring text)
         {
-            SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
+            if (SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()))) throw std::exception("Failed to set text");
         }
 
         void Window::Move(int x, int y, int width, int height, bool repaint)
@@ -615,6 +616,14 @@ namespace NW
             throw std::exception("Can't create pure control class");
         }
 
+        void Control::setWindowValues()
+        {
+            if (!hwnd) throw std::exception("Failed to create");
+            BOOL subClassResult = SetWindowSubclass(hwnd, Control::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
+            if (!subClassResult) throw std::exception("Failed to set sub class");
+            UpdateFont();
+        }
+
         LRESULT CALLBACK Control::ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
         {
             Control* control = reinterpret_cast<Control*>(dwRefData);
@@ -733,9 +742,7 @@ namespace NW
         void Button::create()
         {
             hwnd = CreateWindowExW(0, L"BUTTON", initText.c_str(), WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, Button::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
         }
 
         //
@@ -763,7 +770,7 @@ namespace NW
 
         void CheckBox::SetChecked(bool checked)
         {
-            PostMessageW(hwnd, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
+            SendMessageW(hwnd, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
         }
 
         bool CheckBox::GetChecked()
@@ -783,9 +790,7 @@ namespace NW
         void CheckBox::create()
         {
             hwnd = CreateWindowExW(0, L"BUTTON", initText.c_str(), WS_VISIBLE | WS_CHILD | BS_CHECKBOX, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, CheckBox::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
         }
 
         //
@@ -797,6 +802,12 @@ namespace NW
         //
         // public:
         //
+
+        void ComboBox::SetText(std::wstring text)
+        {
+            LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
+            if (result == CB_ERRSPACE) throw std::exception("Failed to set text");
+        }
 
         ComboBox::ComboBox(Window* window, Position position, std::string text)
         {
@@ -817,14 +828,14 @@ namespace NW
         }
 
         // Zwraca true jeśli operacja powiodła się
-        bool ComboBox::DeleteString(LRESULT index)
+        void ComboBox::DeleteString(LRESULT index)
         {
-            return SendMessageW(hwnd, CB_DELETESTRING, index, 0) != CB_ERR;
+            if (SendMessageW(hwnd, CB_DELETESTRING, index, 0) == CB_ERR) throw std::exception("Failed to delete string");
         }
 
-        bool ComboBox::DeleteString(std::wstring str)
+        void ComboBox::DeleteString(std::wstring str)
         {
-            return DeleteString(FindString(str));
+            DeleteString(FindString(str));
         }
 
         LRESULT ComboBox::FindString(std::wstring str)
@@ -865,12 +876,14 @@ namespace NW
 
         void ComboBox::SetSelected(LRESULT index)
         {
-            SendMessage(hwnd, CB_SETCURSEL, index, 0);
+            if (index > GetCount()) throw std::exception("Index is greater than item count");
+            LRESULT result = SendMessageW(hwnd, CB_SETCURSEL, index, 0);
         }
 
         void ComboBox::SetSelected(std::wstring str)
         {
-            SendMessage(hwnd, CB_SETCURSEL, FindString(str), 0);
+            LRESULT result = SendMessageW(hwnd, CB_SELECTSTRING, -1, reinterpret_cast<LPARAM>(str.c_str()));
+            if (result == CB_ERR) throw std::exception("String not found");
         }
 
         void ComboBox::ShowDropdown(bool show)
@@ -892,9 +905,7 @@ namespace NW
         void ComboBox::create()
         {
             hwnd = CreateWindowExW(0, WC_COMBOBOXW, initText.c_str(), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, ComboBox::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
         }
 
         //
@@ -922,7 +933,8 @@ namespace NW
 
         void DatePicker::SetTime(SYSTEMTIME time)
         {
-            SendMessageW(hwnd, DTM_SETSYSTEMTIME, GDT_VALID, reinterpret_cast<LPARAM>(&time));
+            LRESULT result = SendMessageW(hwnd, DTM_SETSYSTEMTIME, GDT_VALID, reinterpret_cast<LPARAM>(&time));
+            if (result == false) throw std::exception("Failed to set time");
         }
 
         SYSTEMTIME DatePicker::GetTime(bool* valid)
@@ -935,34 +947,39 @@ namespace NW
 
         void DatePicker::SetFormat(std::wstring format)
         {
-            SendMessageW(hwnd, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(format.c_str()));
+            LRESULT result = SendMessageW(hwnd, DTM_SETFORMAT, 0, reinterpret_cast<LPARAM>(format.c_str()));
+            if (result == false) throw std::exception("Failed to set format");
         }
 
         void DatePicker::SetMin(SYSTEMTIME time)
         {
             SYSTEMTIME times[2];
             times[0] = time;
-            SendMessage(hwnd, DTM_SETRANGE, GDTR_MIN, reinterpret_cast<LPARAM>(&times));
+            LRESULT result = SendMessageW(hwnd, DTM_SETRANGE, GDTR_MIN, reinterpret_cast<LPARAM>(&times));
+            if (result == false) throw std::exception("Failed to set min");
         }
 
         void DatePicker::SetMax(SYSTEMTIME time)
         {
             SYSTEMTIME times[2];
             times[1] = time;
-            SendMessage(hwnd, DTM_SETRANGE, GDTR_MAX, reinterpret_cast<LPARAM>(&times));
+            LRESULT result = SendMessageW(hwnd, DTM_SETRANGE, GDTR_MAX, reinterpret_cast<LPARAM>(&times));
+            if (result == false) throw std::exception("Failed to set max");
         }
 
         SYSTEMTIME DatePicker::GetMin()
         {
             SYSTEMTIME times[2];
-            SendMessage(hwnd, DTM_GETRANGE, 0, reinterpret_cast<LPARAM>(&times));
+            LRESULT result = SendMessageW(hwnd, DTM_GETRANGE, 0, reinterpret_cast<LPARAM>(&times));
+            if (result == false) throw std::exception("Failed to get min");
             return times[0];
         }
 
         SYSTEMTIME DatePicker::GetMax()
         {
             SYSTEMTIME times[2];
-            SendMessage(hwnd, DTM_GETRANGE, 0, reinterpret_cast<LPARAM>(&times));
+            LRESULT result = SendMessageW(hwnd, DTM_GETRANGE, 0, reinterpret_cast<LPARAM>(&times));
+            if (result == false) throw std::exception("Failed to get max");
             return times[1];
         }
 
@@ -973,9 +990,7 @@ namespace NW
         void DatePicker::create()
         {
             hwnd = CreateWindowExW(0, DATETIMEPICK_CLASSW, initText.c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | DTS_SHOWNONE, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, DatePicker::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
         }
 
         //
@@ -1019,18 +1034,19 @@ namespace NW
 
         void TextBoxBase::SetReadOnly(bool readOnly)
         {
-            SendMessage(hwnd, EM_SETREADONLY, static_cast<WPARAM>(readOnly), 0);
+            LRESULT result = SendMessageW(hwnd, EM_SETREADONLY, static_cast<WPARAM>(readOnly), 0);
+            if (result == false) throw std::exception("Failed to set read only");
         }
 
         void TextBoxBase::SetSelection(Range selection)
         {
-            SendMessage(hwnd, EM_SETSEL, selection.start, selection.end);
+            SendMessageW(hwnd, EM_SETSEL, selection.start, selection.end);
         }
 
         Range TextBoxBase::GetSelection()
         {
             Range selection;
-            SendMessage(hwnd, EM_GETSEL, reinterpret_cast<WPARAM>(&selection.start), reinterpret_cast<WPARAM>(&selection.end));
+            SendMessageW(hwnd, EM_GETSEL, reinterpret_cast<WPARAM>(&selection.start), reinterpret_cast<WPARAM>(&selection.end));
             return selection;
         }
 
@@ -1059,17 +1075,17 @@ namespace NW
 
         LRESULT TextBoxMultiline::GetLineIndex(LRESULT line)
         {
-            return SendMessage(hwnd, EM_LINEINDEX, line, 0);
+            return SendMessageW(hwnd, EM_LINEINDEX, line, 0);
         }
 
         LRESULT TextBoxMultiline::GetLineLength(LRESULT line)
         {
-            return SendMessage(hwnd, EM_LINELENGTH, GetLineIndex(line), 0);
+            return SendMessageW(hwnd, EM_LINELENGTH, GetLineIndex(line), 0);
         }
 
         LRESULT TextBoxMultiline::GetLineCount()
         {
-            return SendMessage(hwnd, EM_GETLINECOUNT, 0, 0);
+            return SendMessageW(hwnd, EM_GETLINECOUNT, 0, 0);
         }
 
         //
@@ -1086,9 +1102,7 @@ namespace NW
         void TextBoxMultiline::create()
         {
             hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", initText.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, TextBoxMultiline::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
         }
 
         //
@@ -1116,13 +1130,13 @@ namespace NW
 
         void TextBoxSingleline::SetPasswordMode(bool passwordMode)
         {
-            if (passwordMode) SendMessage(hwnd, EM_SETPASSWORDCHAR, 0x2022, 0);
-            else SendMessage(hwnd, EM_SETPASSWORDCHAR, 0, 0);
+            if (passwordMode) SendMessageW(hwnd, EM_SETPASSWORDCHAR, 0x2022, 0);
+            else SendMessageW(hwnd, EM_SETPASSWORDCHAR, 0, 0);
         }
 
         bool TextBoxSingleline::GetPasswordMode()
         {
-            return SendMessage(hwnd, EM_GETPASSWORDCHAR, 0, 0);
+            return SendMessageW(hwnd, EM_GETPASSWORDCHAR, 0, 0);
         }
 
         //
@@ -1132,15 +1146,13 @@ namespace NW
         void TextBoxSingleline::create()
         {
             hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", initText.c_str(), WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_PASSWORD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, TextBoxSingleline::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
             SetPasswordMode(false);
         }
 
         //
         //
-        // class Static
+        // class ListBox
         //
         //
 
@@ -1161,24 +1173,35 @@ namespace NW
             initialize(position, text);
         }
 
+        void ListBox::SetText(std::wstring text)
+        {
+            LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
+            if (result == LB_ERRSPACE) throw std::exception("Failed to set text");
+        }
+
         LRESULT ListBox::AddString(std::wstring str)
         {
-            return SendMessageW(hwnd, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(str.c_str()));
+            LRESULT result = SendMessageW(hwnd, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(str.c_str()));
+            if (result == LB_ERR) throw std::exception("Failed to add string");
+            return result;
         }
 
-        bool ListBox::DeleteString(LRESULT index)
+        void ListBox::DeleteString(LRESULT index)
         {
-            return SendMessageW(hwnd, LB_ADDSTRING, index, 0) == LB_ERR;
+            LRESULT result = SendMessageW(hwnd, LB_DELETESTRING, index, 0);
+            if (result == LB_ERR) throw std::exception("Failed to delete string, index greater than item count");
         }
 
-        bool ListBox::DeleteString(std::wstring str)
+        void ListBox::DeleteString(std::wstring str)
         {
             return DeleteString(FindString(str));
         }
 
         LRESULT ListBox::FindString(std::wstring str)
         {
-            return SendMessageW(hwnd, LB_FINDSTRINGEXACT, -1, reinterpret_cast<LPARAM>(str.c_str()));
+            LRESULT result = SendMessageW(hwnd, LB_FINDSTRINGEXACT, -1, reinterpret_cast<LPARAM>(str.c_str()));
+            if (result == LB_ERR) throw std::exception("Failed to find string");
+            return result;
         }
         
         LRESULT ListBox::GetCount()
@@ -1207,7 +1230,7 @@ namespace NW
         LRESULT ListBox::GetSelected()
         {
             LRESULT selected = SendMessageW(hwnd, LB_GETCURSEL, 0, 0);
-            if (selected == LB_ERR) throw std::exception("Zadna opcja nie jest wybrana, uzyj IsSelected()");
+            if (selected == LB_ERR) throw std::exception("Failed to get selected option, try using IsSelected()");
             return selected;
         }
 
@@ -1224,7 +1247,8 @@ namespace NW
 
         void ListBox::SetSelected(LRESULT index)
         {
-            SendMessageW(hwnd, LB_SETCURSEL, index, 0);
+            LRESULT result = SendMessageW(hwnd, LB_SETCURSEL, index, 0);
+            if (result == LB_ERR) throw std::exception("Failed to set selected");
         }
 
         void ListBox::SetSelected(std::wstring str)
@@ -1250,9 +1274,7 @@ namespace NW
         void ListBox::create()
         {
             hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, initText.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, ListBox::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
         }
 
         //
@@ -1280,7 +1302,8 @@ namespace NW
 
         void ProgressBar::SetRange(Range range)
         {
-            SendMessageW(hwnd, PBM_SETRANGE, 0, MAKELPARAM(range.start, range.end));
+            LRESULT result = SendMessageW(hwnd, PBM_SETRANGE, 0, MAKELPARAM(range.start, range.end));
+            if (result == false) throw std::exception("Failed to set range");
         }
 
         Range ProgressBar::GetRange()
@@ -1305,12 +1328,12 @@ namespace NW
             SendMessageW(hwnd, PBM_STEPIT, 0, 0);
         }
 
-        void ProgressBar::SetPos(int pos)
+        void ProgressBar::SetPos(UINT pos)
         {
             SendMessageW(hwnd, PBM_SETPOS, pos, 0);
         }
 
-        int ProgressBar::GetPos()
+        UINT ProgressBar::GetPos()
         {
             return SendMessageW(hwnd, PBM_GETPOS, 0, 0);
         }
@@ -1366,9 +1389,7 @@ namespace NW
         void ProgressBar::create()
         {
             hwnd = CreateWindowExW(0, PROGRESS_CLASSW, initText.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, ProgressBar::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
         }
 
         //
@@ -1401,9 +1422,7 @@ namespace NW
         void Static::create()
         {
             hwnd = CreateWindowExW(0, L"STATIC", initText.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-            SetWindowSubclass(hwnd, Static::ControlProc, 0, reinterpret_cast<DWORD_PTR>(this));
-            UpdateFont();
+            setWindowValues();
         }
     }
 }

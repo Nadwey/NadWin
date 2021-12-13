@@ -243,9 +243,9 @@ namespace NW
             Position GetPosition();
             void SetPosition(Position position);
 
-            std::wstring GetText();
-            LRESULT GetTextLength();
-            void SetText(std::wstring text);
+            virtual std::wstring GetText();
+            virtual LRESULT GetTextLength();
+            virtual void SetText(std::wstring text);
 
             void Focus();
             void RemoveFocus();
@@ -264,6 +264,7 @@ namespace NW
 
             virtual void initialize(Position& position, std::wstring& text);
             virtual void create();
+            virtual void setWindowValues();
 
             static LRESULT CALLBACK ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
         private:
@@ -300,9 +301,11 @@ namespace NW
             ComboBox(Window* window, Position position, std::string text);
             ComboBox(Window* window, Position position, std::wstring text);
 
+            void SetText(std::wstring text) override;
+
             LRESULT			AddString(std::wstring str);
-            bool			DeleteString(LRESULT index);
-            bool			DeleteString(std::wstring str);
+            void			DeleteString(LRESULT index);
+            void			DeleteString(std::wstring str);
             LRESULT			FindString(std::wstring str);
             LRESULT			GetCount();
             LRESULT			GetStringLength(LRESULT index);
@@ -391,9 +394,11 @@ namespace NW
             ListBox(Window* window, Position position, std::string text);
             ListBox(Window* window, Position position, std::wstring text);
 
+            void SetText(std::wstring text) override;
+
             LRESULT			AddString(std::wstring str);
-            bool			DeleteString(LRESULT index);
-            bool			DeleteString(std::wstring str);
+            void			DeleteString(LRESULT index);
+            void			DeleteString(std::wstring str);
             LRESULT			FindString(std::wstring str);
             LRESULT			GetCount();
             LRESULT			GetStringLength(LRESULT index);
@@ -427,8 +432,8 @@ namespace NW
             void SetStep(int step);
             int GetStep();
             void Step();
-            void SetPos(int pos);
-            int GetPos();
+            void SetPos(UINT pos);
+            UINT GetPos();
             void SetState(ProgressBarState state);
             ProgressBarState GetState();
             void SetMarquee(bool enabled, int updateTime = 30);
