@@ -384,6 +384,39 @@ namespace NW
             if (!result) throw std::runtime_error("Failed to set text");
         }
 
+        void Window::SetCanResize(bool resize)
+        {
+            if (resize) AppendStyle(hwnd, WS_THICKFRAME);
+            else RemoveStyle(hwnd, WS_THICKFRAME);
+        }
+
+        void Window::SetCanMaximize(bool maximize)
+        {
+            if (maximize) AppendStyle(hwnd, WS_MAXIMIZEBOX);
+            else RemoveStyle(hwnd, WS_MAXIMIZEBOX);
+        }
+
+        void Window::SetCanMinimize(bool minimize)
+        {
+            if (minimize) AppendStyle(hwnd, WS_MINIMIZEBOX);
+            else RemoveStyle(hwnd, WS_MINIMIZEBOX);
+        }
+
+        bool Window::GetCanResize()
+        {
+            return HasStyle(hwnd, WS_THICKFRAME);
+        }
+
+        bool Window::GetCanMaximize()
+        {
+            return HasStyle(hwnd, WS_MAXIMIZEBOX);
+        }
+
+        bool Window::GetCanMinimize()
+        {
+            return HasStyle(hwnd, WS_MINIMIZEBOX);
+        }
+
         void Window::Move(int x, int y, int width, int height, bool repaint)
         {
             MoveWindow(hwnd, x, y, width, height, repaint);

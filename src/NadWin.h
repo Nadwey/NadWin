@@ -176,6 +176,14 @@ namespace NW
             LRESULT GetTextLength();
             void SetText(std::wstring text);
 
+            void SetCanResize(bool resize);
+            void SetCanMinimize(bool minimize);
+            void SetCanMaximize(bool maximize);
+
+            bool GetCanResize();
+            bool GetCanMinimize();
+            bool GetCanMaximize();
+
             void Move(int x, int y, int width, int height, bool repaint = true);
             void Show();
 
