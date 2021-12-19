@@ -6,7 +6,7 @@ WinAPI GUI Library (kind of a wrapper).
 
 ## Usage
 
-Example:
+Example (MSVC):
 
 ```cpp
 #include "NadWin/src/NadWin.h"
