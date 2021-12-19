@@ -1,6 +1,6 @@
 # TODO list
-- Więcej kontrolek
+- Więcej kontrolek (w miarę zrobionę)
+- Image, ImageBox (kontrolka)
 - Zaimplementować lepszą klase Random
-- Obsługa wyjątków (teraz ogarnąłem, że tego totalnie nie ma)
 
 *Ta lista się często zmienia*
