@@ -42,7 +42,6 @@ int main()
         }
     };
 
-    window.Add(&button);
     window.Show();
 
     app.MessageLoop();
