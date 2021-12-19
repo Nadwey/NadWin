@@ -13,7 +13,6 @@
 #include <locale>
 #include <codecvt>
 #include <exception>
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <commctrl.h>
 
@@ -25,6 +24,11 @@
 namespace NW
 {
     namespace UI {
+        struct Range {
+            int start;
+            int end;
+        };
+
         class Font
         {
         public:
@@ -184,10 +188,12 @@ namespace NW
             bool GetCanMinimize();
             bool GetCanMaximize();
 
-            void Move(int x, int y, int width, int height, bool repaint = true);
+            Position GetPosition();
+            void SetPosition(Position position, bool repaint = true);
             void Show();
-
-            void Add(Control* control);
+            int GetWidth();
+            int GetHeight();
+            Position GetClientArea();
 
             void Repaint();
 
@@ -256,7 +262,6 @@ namespace NW
             void Repaint();
 
             void SetFont(Font* font);
-            void SetFont(Font font);
 
             virtual std::wstring GetText();
             virtual LRESULT GetTextLength();
@@ -277,11 +282,8 @@ namespace NW
             Window* window = nullptr;
             HWND hwnd = nullptr;
             bool isOver = false;
-            std::wstring initText;
-            Position position;
 
-            virtual void initialize(Position& position, std::wstring& text);
-            virtual void create();
+            virtual void create(std::wstring text, Position position);
             virtual void setWindowValues();
 
             static LRESULT CALLBACK ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
@@ -297,7 +299,7 @@ namespace NW
             Button(Window* window, Position position, std::wstring text);
 
         private:
-            void create() override;
+            void create(std::wstring text, Position position) override;
         };
 
         class CheckBox : public Control
@@ -310,7 +312,7 @@ namespace NW
             bool GetChecked();
             void ToggleChecked();
         private:
-            void create() override;
+            void create(std::wstring text, Position position) override;
         };
 
         class ComboBox : public Control
@@ -335,8 +337,7 @@ namespace NW
             void			ShowDropdown(bool show);
 
         private:
-            void initialize(Position& position, std::wstring& text);
-            void create() override;
+            void create(std::wstring text, Position position) override;
         };
 
         class DatePicker : public Control
@@ -354,56 +355,7 @@ namespace NW
             SYSTEMTIME GetMax();
 
         private:
-            void create() override;
-        };
-
-        enum class TextBoxTextAlign {
-            Left = 0,
-            Center,
-            Right
-        };
-
-        struct Range {
-            int start;
-            int end;
-        };
-
-        class TextBoxBase : public Control {
-        public:
-            void SetTextAlign(TextBoxTextAlign align);
-            TextBoxTextAlign GetTextAlign();
-
-            void SetReadOnly(bool readOnly);
-            void SetSelection(Range selection);
-            Range GetSelection();
-        };
-
-        class TextBoxMultiline : public TextBoxBase
-        {
-        public:
-            TextBoxMultiline(Window* window, Position position, std::string text);
-            TextBoxMultiline(Window* window, Position position, std::wstring text);
-
-            LRESULT GetLineIndex(LRESULT line);
-            LRESULT GetLineLength(LRESULT line);
-            LRESULT GetLineCount();
-
-        private:
-            void initialize(Position& position, std::wstring& text);
-            void create() override;
-        };
-
-        class TextBoxSingleline : public TextBoxBase
-        {
-        public:
-            TextBoxSingleline(Window* window, Position position, std::string text);
-            TextBoxSingleline(Window* window, Position position, std::wstring text);
-
-            void SetPasswordMode(bool passwordMode);
-            bool GetPasswordMode();
-
-        private:
-            void create() override;
+            void create(std::wstring text, Position position) override;
         };
 
         class ListBox : public Control
@@ -432,16 +384,16 @@ namespace NW
             LRESULT         GetTopIndex();
 
         private:
-            void create() override;
+            void create(std::wstring text, Position position) override;
         };
+
+#if _WIN32_WINNT >= 0x0600
 
         enum class ProgressBarState {
             Normal = 0,
             Error,
             Paused
         };
-
-#if _WIN32_WINNT >= 0x0600
 
         class ProgressBar : public Control
         {
@@ -460,10 +412,53 @@ namespace NW
             ProgressBarState GetState();
             void SetMarquee(bool enabled, int updateTime = 30);
         private:
-            void create() override;
+            void create(std::wstring text, Position position) override;
         };
 
 #endif
+
+        enum class TextBoxTextAlign {
+            Left = 0,
+            Center,
+            Right
+        };
+
+        class TextBoxBase : public Control {
+        public:
+            void SetTextAlign(TextBoxTextAlign align);
+            TextBoxTextAlign GetTextAlign();
+
+            void SetReadOnly(bool readOnly);
+            void SetSelection(Range selection);
+            Range GetSelection();
+        };
+
+        class TextBoxMultiline : public TextBoxBase
+        {
+        public:
+            TextBoxMultiline(Window* window, Position position, std::string text);
+            TextBoxMultiline(Window* window, Position position, std::wstring text);
+
+            LRESULT GetLineIndex(LRESULT line);
+            LRESULT GetLineLength(LRESULT line);
+            LRESULT GetLineCount();
+
+        private:
+            void create(std::wstring text, Position position) override;
+        };
+
+        class TextBoxSingleline : public TextBoxBase
+        {
+        public:
+            TextBoxSingleline(Window* window, Position position, std::string text);
+            TextBoxSingleline(Window* window, Position position, std::wstring text);
+
+            void SetPasswordMode(bool passwordMode);
+            bool GetPasswordMode();
+
+        private:
+            void create(std::wstring text, Position position) override;
+        };
 
         class Static : public Control
         {
@@ -472,7 +467,7 @@ namespace NW
             Static(Window* window, Position position, std::wstring text);
 
         private:
-            void create() override;
+            void create(std::wstring text, Position position) override;
         };
     }
 }

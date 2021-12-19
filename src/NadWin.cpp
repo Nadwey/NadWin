@@ -143,7 +143,7 @@ namespace NW
         void Font::update()
         {
             if (font) DeleteObject(font);
-            font = CreateFontW(height, width, 0, 0, 0, italic, underline, strike, 0, 0, 0, ANTIALIASED_QUALITY, 0, faceName.c_str());
+            font = CreateFontW(height, width, 0, 0, 0, italic, underline, strike, 0, 0, 0, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, faceName.c_str());
             if (!font) throw std::runtime_error("Failed to create font");
         }
 
@@ -380,6 +380,7 @@ namespace NW
 
         void Window::SetText(std::wstring text)
         {
+            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
             if (!result) throw std::runtime_error("Failed to set text");
         }
@@ -417,9 +418,16 @@ namespace NW
             return HasStyle(hwnd, WS_MINIMIZEBOX);
         }
 
-        void Window::Move(int x, int y, int width, int height, bool repaint)
+        void Window::SetPosition(Position position, bool repaint)
         {
-            MoveWindow(hwnd, x, y, width, height, repaint);
+            MoveWindow(hwnd, position.x, position.y, position.width, position.height, repaint);
+        }
+
+        Position Window::GetPosition()
+        {
+            RECT rc;
+            GetWindowRect(hwnd, &rc);
+            return Position(&rc);
         }
 
         void Window::Show()
@@ -428,9 +436,25 @@ namespace NW
             UpdateWindow(hwnd);
         }
 
-        void Window::Add(Control* button)
+        int Window::GetWidth()
         {
-            button->create();
+            RECT rc;
+            GetWindowRect(hwnd, &rc);
+            return rc.right - rc.left;
+        }
+
+        int Window::GetHeight()
+        {
+            RECT rc;
+            GetWindowRect(hwnd, &rc);
+            return rc.bottom - rc.top;
+        }
+
+        Position Window::GetClientArea()
+        {
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+            return Position(&rc);
         }
 
         void Window::Repaint()
@@ -444,7 +468,7 @@ namespace NW
 
         void Window::createWindow(std::wstring& WindowName, int x, int y, int width, int height)
         {
-            hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), WS_OVERLAPPEDWINDOW, x, y, width, height, nullptr, nullptr, App::hInstance, nullptr);
+            hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, x, y, width, height, nullptr, nullptr, App::hInstance, nullptr);
             if (!hwnd) throw std::runtime_error("Failed to create window");
             SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
         }
@@ -585,11 +609,6 @@ namespace NW
             SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(font->GetFont()), false);
         }
 
-        void Control::SetFont(Font font)
-        {
-            SetFont(&font);
-        }
-
         LRESULT Control::GetTextLength()
         {
             return SendMessageW(hwnd, WM_GETTEXTLENGTH, 0, 0);
@@ -608,6 +627,7 @@ namespace NW
 
         void Control::SetText(std::wstring text)
         {
+            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
             if (!result) throw std::runtime_error("Failed to set text");
         }
@@ -653,14 +673,7 @@ namespace NW
 
         }
 
-        void Control::initialize(Position& position, std::wstring& text)
-        {
-            this->position = position;
-            SetPosition(position);
-            initText = text;
-        }
-
-        void Control::create()
+        void Control::create(std::wstring text, Position position)
         {
             throw std::runtime_error("Can't create pure control class");
         }
@@ -680,6 +693,7 @@ namespace NW
             controlEventInfo.wParam = wParam;
             controlEventInfo.lParam = lParam;
             controlEventInfo.control = control;
+
             switch (msg)
             {
             case WM_DESTROY:
@@ -774,22 +788,22 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         Button::Button(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         //
         // private:
         //
 
-        void Button::create()
+        void Button::create(std::wstring text, Position position)
         {
-            hwnd = CreateWindowExW(0, L"BUTTON", initText.c_str(), WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -807,13 +821,13 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         CheckBox::CheckBox(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         void CheckBox::SetChecked(bool checked)
@@ -835,9 +849,9 @@ namespace NW
         // private:
         //
 
-        void CheckBox::create()
+        void CheckBox::create(std::wstring text, Position position)
         {
-            hwnd = CreateWindowExW(0, L"BUTTON", initText.c_str(), WS_VISIBLE | WS_CHILD | BS_CHECKBOX, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_CHECKBOX, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -853,6 +867,7 @@ namespace NW
 
         void ComboBox::SetText(std::wstring text)
         {
+            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
             if (result == CB_ERRSPACE) throw std::runtime_error("Failed to set text");
         }
@@ -861,13 +876,13 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         ComboBox::ComboBox(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         LRESULT ComboBox::AddString(std::wstring str)
@@ -943,16 +958,9 @@ namespace NW
         // private:
         //
 
-        void ComboBox::initialize(Position& position, std::wstring& text)
+        void ComboBox::create(std::wstring text, Position position)
         {
-            this->position = position;
-            SetPosition(position);
-            SetText(text);
-        }
-
-        void ComboBox::create()
-        {
-            hwnd = CreateWindowExW(0, WC_COMBOBOXW, initText.c_str(), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, WC_COMBOBOXW, text.c_str(), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -970,13 +978,13 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         DatePicker::DatePicker(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         void DatePicker::SetTime(SYSTEMTIME time)
@@ -1035,9 +1043,9 @@ namespace NW
         // private:
         //
 
-        void DatePicker::create()
+        void DatePicker::create(std::wstring text, Position position)
         {
-            hwnd = CreateWindowExW(0, DATETIMEPICK_CLASSW, initText.c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | DTS_SHOWNONE, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, DATETIMEPICK_CLASSW, text.c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | DTS_SHOWNONE, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -1112,13 +1120,13 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         TextBoxMultiline::TextBoxMultiline(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         LRESULT TextBoxMultiline::GetLineIndex(LRESULT line)
@@ -1140,16 +1148,9 @@ namespace NW
         // private:
         //
 
-        void TextBoxMultiline::initialize(Position& position, std::wstring& text)
+        void TextBoxMultiline::create(std::wstring text, Position position)
         {
-            this->position = position;
-            SetPosition(position);
-            SetText(text);
-        }
-
-        void TextBoxMultiline::create()
-        {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", initText.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -1167,13 +1168,13 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         TextBoxSingleline::TextBoxSingleline(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         void TextBoxSingleline::SetPasswordMode(bool passwordMode)
@@ -1191,9 +1192,9 @@ namespace NW
         // private:
         //
 
-        void TextBoxSingleline::create()
+        void TextBoxSingleline::create(std::wstring text, Position position)
         {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", initText.c_str(), WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_PASSWORD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_PASSWORD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
             SetPasswordMode(false);
         }
@@ -1212,17 +1213,18 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         ListBox::ListBox(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         void ListBox::SetText(std::wstring text)
         {
+            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
             if (result == LB_ERRSPACE) throw std::runtime_error("Failed to set text");
         }
@@ -1331,9 +1333,9 @@ namespace NW
         // private:
         //
 
-        void ListBox::create()
+        void ListBox::create(std::wstring text, Position position)
         {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, initText.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, text.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -1353,13 +1355,13 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         ProgressBar::ProgressBar(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         void ProgressBar::SetRange(Range range)
@@ -1448,9 +1450,9 @@ namespace NW
         // private:
         //
 
-        void ProgressBar::create()
+        void ProgressBar::create(std::wstring text, Position position)
         {
-            hwnd = CreateWindowExW(0, PROGRESS_CLASSW, initText.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, PROGRESS_CLASSW, text.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 #endif
@@ -1469,22 +1471,22 @@ namespace NW
         {
             this->window = window;
             std::wstring ws = s2ws(text);
-            initialize(position, ws);
+            create(ws, position);
         }
 
         Static::Static(Window* window, Position position, std::wstring text)
         {
             this->window = window;
-            initialize(position, text);
+            create(text, position);
         }
 
         //
         // private:
         //
 
-        void Static::create()
+        void Static::create(std::wstring text, Position position)
         {
-            hwnd = CreateWindowExW(0, L"STATIC", initText.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, L"STATIC", text.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
     }
