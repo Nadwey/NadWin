@@ -47,8 +47,3 @@ int main()
     app.MessageLoop();
 }
 ```
-
-## Status
-
-Basic windows.
-**Don't use this library using `git clone`, download it from releases.**
