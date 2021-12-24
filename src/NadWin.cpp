@@ -149,7 +149,7 @@ namespace NW
 
         RECT Position::Rect()
         {
-            RECT rc;
+            RECT rc = { 0 };
             rc.left = x;
             rc.top = y;
             rc.right = x + width;
@@ -945,7 +945,7 @@ namespace NW
 
         SYSTEMTIME DatePicker::GetTime(bool* valid)
         {
-            SYSTEMTIME time;
+            SYSTEMTIME time = { 0 };
             LRESULT result = SendMessageW(hwnd, DTM_GETSYSTEMTIME, 0, reinterpret_cast<LPARAM>(&time));
             if (valid) *valid = result == GDT_VALID;
             return time;
@@ -959,7 +959,7 @@ namespace NW
 
         void DatePicker::SetMin(SYSTEMTIME time)
         {
-            SYSTEMTIME times[2];
+            SYSTEMTIME times[2] = { 0, 0 };
             times[0] = time;
             LRESULT result = SendMessageW(hwnd, DTM_SETRANGE, GDTR_MIN, reinterpret_cast<LPARAM>(&times));
             if (result == false) throw std::runtime_error("Failed to set min");
@@ -967,7 +967,7 @@ namespace NW
 
         void DatePicker::SetMax(SYSTEMTIME time)
         {
-            SYSTEMTIME times[2];
+            SYSTEMTIME times[2] = { 0, 0 };
             times[1] = time;
             LRESULT result = SendMessageW(hwnd, DTM_SETRANGE, GDTR_MAX, reinterpret_cast<LPARAM>(&times));
             if (result == false) throw std::runtime_error("Failed to set max");
@@ -975,7 +975,7 @@ namespace NW
 
         SYSTEMTIME DatePicker::GetMin()
         {
-            SYSTEMTIME times[2];
+            SYSTEMTIME times[2] = { 0, 0 };
             LRESULT result = SendMessageW(hwnd, DTM_GETRANGE, 0, reinterpret_cast<LPARAM>(&times));
             if (result == false) throw std::runtime_error("Failed to get min");
             return times[0];
@@ -983,7 +983,7 @@ namespace NW
 
         SYSTEMTIME DatePicker::GetMax()
         {
-            SYSTEMTIME times[2];
+            SYSTEMTIME times[2] = { 0, 0 };
             LRESULT result = SendMessageW(hwnd, DTM_GETRANGE, 0, reinterpret_cast<LPARAM>(&times));
             if (result == false) throw std::runtime_error("Failed to get max");
             return times[1];
@@ -1184,7 +1184,7 @@ namespace NW
 
         Range ProgressBar::GetRange()
         {
-            PBRANGE range;
+            PBRANGE range = { 0 };
             SendMessageW(hwnd, PBM_GETRANGE, 0, reinterpret_cast<LPARAM>(&range));
             return Range{ range.iLow, range.iHigh };
         }
@@ -1347,7 +1347,7 @@ namespace NW
 
         Range TextBoxBase::GetSelection()
         {
-            Range selection;
+            Range selection = { 0 };
             SendMessageW(hwnd, EM_GETSEL, reinterpret_cast<WPARAM>(&selection.start), reinterpret_cast<WPARAM>(&selection.end));
             return selection;
         }
