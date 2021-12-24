@@ -34,12 +34,10 @@ namespace NW
         public:
             Font() = default;
             Font(int height, std::wstring faceName, int width = 0, bool italic = false, bool underline = false, bool strike = false);
-            Font(int height, std::string faceName, int width = 0, bool italic = false, bool underline = false, bool strike = false);
             ~Font();
 
             void SetHeight(int height);
             void SetFaceName(std::wstring faceName);
-            void SetFaceName(std::string faceName);
             void SetWidth(int width);
             void SetItalic(bool italic);
             void SetUnderline(bool underline);
@@ -77,6 +75,7 @@ namespace NW
             RECT Rect();
             void FromRect(RECT rect);
             void FromRect(RECT* rect);
+            operator RECT() { return Rect(); }
 
             int x = 0;
             int y = 0;
@@ -84,30 +83,15 @@ namespace NW
             int height = 0;
         };
 
-        class Border
-        {
-        public:
-            Border() = default;
-            Border(int left, int top, int right, int bottom, COLORREF color);
-
-            bool NeedsRender();
-
-            int left = 0;
-            int top = 0;
-            int right = 0;
-            int bottom = 0;
-        };
-
         // Właściwe UI
 
         class App {
         public:
             App(std::wstring AppName);
-            App(std::string AppName);
             ~App();
 
-            WPARAM MessageLoop();
-            std::wstring GetAppName();
+            static WPARAM MessageLoop();
+            static std::wstring GetAppName();
 
             static void DoEvents();
         private:
@@ -171,7 +155,6 @@ namespace NW
         class Window {
         public:
             Window(std::wstring WindowName, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
-            Window(std::string WindowName, int x = CW_USEDEFAULT, int y = CW_USEDEFAULT, int width = CW_USEDEFAULT, int height = CW_USEDEFAULT);
             ~Window();
 
             const HWND Hwnd();
@@ -197,13 +180,17 @@ namespace NW
 
             void Repaint();
 
+            void SetDefaultFont(Font* font);
+
             std::function<void(WindowEventTypes, WindowEventInfo*)> EventHandler;
+            COLORREF backgroundColor = 0xffffff;
         private:
             void createWindow(std::wstring& WindowName, int x, int y, int width, int height);
             LRESULT CALLBACK proc(UINT msg, WPARAM wParam, LPARAM lParam);
 
             HWND hwnd = nullptr;
             bool isOver = false;
+            Font defaultFont;
 
             friend class App;
             friend class Control;
@@ -270,6 +257,9 @@ namespace NW
             void Focus();
             void RemoveFocus();
 
+            void SetEnabled(bool enabled);
+            bool GetEnabled();
+
             HWND Hwnd();
             void Destroy();
 
@@ -285,6 +275,7 @@ namespace NW
 
             virtual void create(std::wstring text, Position position);
             virtual void setWindowValues();
+            virtual void processMessage(ControlEventInfo* eventInfo);
 
             static LRESULT CALLBACK ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
         private:
@@ -295,7 +286,6 @@ namespace NW
         class Button : public Control
         {
         public:
-            Button(Window* window, Position position, std::string text);
             Button(Window* window, Position position, std::wstring text);
 
         private:
@@ -305,7 +295,6 @@ namespace NW
         class CheckBox : public Control
         {
         public:
-            CheckBox(Window* window, Position position, std::string text);
             CheckBox(Window* window, Position position, std::wstring text);
 
             void SetChecked(bool checked);
@@ -313,12 +302,12 @@ namespace NW
             void ToggleChecked();
         private:
             void create(std::wstring text, Position position) override;
+            void processMessage(ControlEventInfo* eventInfo) override;
         };
 
         class ComboBox : public Control
         {
         public:
-            ComboBox(Window* window, Position position, std::string text);
             ComboBox(Window* window, Position position, std::wstring text);
 
             void SetText(std::wstring text) override;
@@ -343,7 +332,6 @@ namespace NW
         class DatePicker : public Control
         {
         public:
-            DatePicker(Window* window, Position position, std::string text);
             DatePicker(Window* window, Position position, std::wstring text);
 
             void SetTime(SYSTEMTIME time);
@@ -361,7 +349,6 @@ namespace NW
         class ListBox : public Control
         {
         public:
-            ListBox(Window* window, Position position, std::string text);
             ListBox(Window* window, Position position, std::wstring text);
 
             void SetText(std::wstring text) override;
@@ -387,6 +374,16 @@ namespace NW
             void create(std::wstring text, Position position) override;
         };
 
+        class ImageBox : public Control
+        {
+        public:
+            ImageBox(Window* window, Position position, std::wstring text);
+
+
+        private:
+            void create(std::wstring text, Position position) override;
+        };
+
 #if _WIN32_WINNT >= 0x0600
 
         enum class ProgressBarState {
@@ -398,7 +395,6 @@ namespace NW
         class ProgressBar : public Control
         {
         public:
-            ProgressBar(Window* window, Position position, std::string text);
             ProgressBar(Window* window, Position position, std::wstring text);
 
             void SetRange(Range range);
@@ -417,6 +413,15 @@ namespace NW
 
 #endif
 
+        class Static : public Control
+        {
+        public:
+            Static(Window* window, Position position, std::wstring text);
+
+        private:
+            void create(std::wstring text, Position position) override;
+        };
+
         enum class TextBoxTextAlign {
             Left = 0,
             Center,
@@ -431,12 +436,15 @@ namespace NW
             void SetReadOnly(bool readOnly);
             void SetSelection(Range selection);
             Range GetSelection();
+#if _WIN32_WINNT >= 0x0600
+            // Common Controls >= 6.0
+            void SetPlaceholder(std::wstring text);
+#endif
         };
 
         class TextBoxMultiline : public TextBoxBase
         {
         public:
-            TextBoxMultiline(Window* window, Position position, std::string text);
             TextBoxMultiline(Window* window, Position position, std::wstring text);
 
             LRESULT GetLineIndex(LRESULT line);
@@ -450,7 +458,6 @@ namespace NW
         class TextBoxSingleline : public TextBoxBase
         {
         public:
-            TextBoxSingleline(Window* window, Position position, std::string text);
             TextBoxSingleline(Window* window, Position position, std::wstring text);
 
             void SetPasswordMode(bool passwordMode);
@@ -460,15 +467,26 @@ namespace NW
             void create(std::wstring text, Position position) override;
         };
 
-        class Static : public Control
+#if _WIN32_WINNT >= 0x0600
+        class TrackBar : public Control
         {
         public:
-            Static(Window* window, Position position, std::string text);
-            Static(Window* window, Position position, std::wstring text);
+            TrackBar(Window* window, Position position, std::wstring text);
+
+            void SetMin(int min, bool redraw = true);
+            void SetMax(int max, bool redraw = true);
+            int GetMin();
+            int GetMax();
+            void SetPos(int pos, bool redraw = true);
+            int GetPos();
+            void SetTickFrequency(int frequency);
+            void SetTicksVisibility(bool visible);
+            bool GetTicksVisibility();
 
         private:
             void create(std::wstring text, Position position) override;
         };
+#endif
     }
 }
 #endif
