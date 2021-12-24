@@ -9,7 +9,7 @@ WinAPI GUI Library (kind of a wrapper).
 Example (MSVC):
 
 ```cpp
-#include "NadWin/src/NadWin.h"
+#include "NadWin/src/NadWin.hpp"
 
 #pragma comment(lib, "Comctl32.lib")
 
