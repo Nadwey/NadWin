@@ -17,8 +17,6 @@
 #include <windowsx.h>
 #include <commctrl.h>
 
-#define NW_ENABLE_DIRECTX_FEATURES
-
 #ifdef NW_ENABLE_DIRECTX_FEATURES
 #define CANVAS2D_CLASS_NAME L"CANVAS2D"
 #include <d2d1.h>
