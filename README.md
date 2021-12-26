@@ -27,7 +27,7 @@ int main()
 {
     namespace UI = NW::UI;
 
-    UI::App app("Example app");
+    UI::App app(L"Example app");
     UI::Window window(L"Example window", CW_USEDEFAULT, CW_USEDEFAULT, 800, 600);
     
     UI::Button button(&window, UI::Position(5, 5, 300, 50), L"Hello, World!");
