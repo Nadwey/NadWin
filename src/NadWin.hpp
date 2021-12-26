@@ -12,9 +12,18 @@
 #include <functional>
 #include <locale>
 #include <codecvt>
-#include <exception>
+#include <stdexcept>
 #include <windows.h>
+#include <windowsx.h>
 #include <commctrl.h>
+
+#define NW_ENABLE_DIRECTX_FEATURES
+
+#ifdef NW_ENABLE_DIRECTX_FEATURES
+#define CANVAS2D_CLASS_NAME L"CANVAS2D"
+#include <d2d1.h>
+#include <dwrite.h>
+#endif
 
 #if _WIN32_WINNT < 0x0501
 #error Minimum _WIN32_WINNT version is 0x0501 (Windows XP)
@@ -24,6 +33,14 @@
 namespace NW
 {
     namespace UI {
+        LONG_PTR GetStyle(HWND hwnd);
+        void SetStyle(HWND hwnd, LONG_PTR style);
+        bool HasStyle(HWND hwnd, LONG_PTR style);
+        void AppendStyle(HWND hwnd, LONG_PTR style);
+        void RemoveStyle(HWND hwnd, LONG_PTR style);
+        LONG_PTR GetExStyle(HWND hwnd);
+        void SetExStyle(HWND hwnd, LONG_PTR style);
+
         struct Range {
             int start;
             int end;
@@ -101,8 +118,14 @@ namespace NW
             static std::wstring AppName;
             static HINSTANCE hInstance;
             static bool initialized;
+#ifdef NW_ENABLE_DIRECTX_FEATURES
+            static ID2D1Factory* pD2DFactory;
+#endif
 
             friend class Window;
+#ifdef NW_ENABLE_DIRECTX_FEATURES
+            friend class Canvas2D;
+#endif
         };
 
 
@@ -132,7 +155,10 @@ namespace NW
             Focus,
             RemoveFocus,
             Move,
+            Moving,
             Size,
+            Sizing,
+            Paint,
             Destroy
         };
 
@@ -217,7 +243,12 @@ namespace NW
             KeyChar,
             Focus,
             RemoveFocus,
+            Move,
+            Moving,
+            Size,
+            Sizing,
             Destroy,
+            Paint,
             FromParent_Command // Odbierane z wyższego okna
         };
 
@@ -227,9 +258,7 @@ namespace NW
         public:
             void OverrideProcResult(LRESULT result);
 
-            UINT uMsg = 0;
-            WPARAM wParam = 0;
-            LPARAM lParam = 0;
+            MSG* msg = nullptr;
             Control* control = nullptr;
             void* additionalData = nullptr;
         private:
@@ -237,12 +266,13 @@ namespace NW
             LRESULT result = 0;
 
             friend class Control;
+            friend class Canvas2D;
         };
 
         class Control
         {
         public:
-            ~Control();
+            virtual ~Control();
 
             std::function<void(ControlEventTypes, ControlEventInfo*)> EventHandler;
 
@@ -265,6 +295,11 @@ namespace NW
 
             Position GetPosition();
             void SetPosition(Position position, bool repaint = true);
+            int GetWidth();
+            int GetHeight();
+            Position GetClientArea();
+
+            void* userData;
         protected:
             Control();
 
@@ -273,42 +308,67 @@ namespace NW
             HWND hwnd = nullptr;
             bool isOver = false;
 
-            virtual void create(std::wstring text, Position position);
+            virtual void create(std::wstring text, Position position, LONG_PTR customStyles);
             virtual void setWindowValues();
-            virtual void processMessage(ControlEventInfo* eventInfo);
+            virtual LRESULT processMessage(ControlEventInfo* eventInfo);
+            static void handleEvents(ControlEventInfo* eventInfo);
 
             static LRESULT CALLBACK ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR);
         private:
             friend class Window;
+            friend class Canvas2D;
             friend struct ControlEventInfo;
         };
 
         class Button : public Control
         {
         public:
-            Button(Window* window, Position position, std::wstring text);
+            Button(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
+
+#ifdef NW_ENABLE_DIRECTX_FEATURES
+        class Canvas2D : public Control
+        {
+        public:
+            Canvas2D(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
+            ~Canvas2D();
+
+            ID2D1HwndRenderTarget* GetHwndRenderTarget();
+
+        private:
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
+            void setWindowValues() override;
+            LRESULT processMessage(ControlEventInfo* eventInfo) override;
+            static LRESULT canvasProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+            ID2D1HwndRenderTarget* pRT = nullptr;
+
+            friend class App;
+            friend class Control;
+            friend struct ControlEventInfo;
+        };
+#endif
 
         class CheckBox : public Control
         {
         public:
-            CheckBox(Window* window, Position position, std::wstring text);
+            CheckBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
             void SetChecked(bool checked);
             bool GetChecked();
             void ToggleChecked();
         private:
-            void create(std::wstring text, Position position) override;
-            void processMessage(ControlEventInfo* eventInfo) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
+            LRESULT processMessage(ControlEventInfo* eventInfo) override;
         };
 
         class ComboBox : public Control
         {
         public:
-            ComboBox(Window* window, Position position, std::wstring text);
+            ComboBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
             void SetText(std::wstring text) override;
 
@@ -326,13 +386,13 @@ namespace NW
             void			ShowDropdown(bool show);
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 
         class DatePicker : public Control
         {
         public:
-            DatePicker(Window* window, Position position, std::wstring text);
+            DatePicker(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
             void SetTime(SYSTEMTIME time);
             SYSTEMTIME GetTime(bool* valid = nullptr);
@@ -343,13 +403,13 @@ namespace NW
             SYSTEMTIME GetMax();
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 
         class ListBox : public Control
         {
         public:
-            ListBox(Window* window, Position position, std::wstring text);
+            ListBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
             void SetText(std::wstring text) override;
 
@@ -371,17 +431,17 @@ namespace NW
             LRESULT         GetTopIndex();
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 
         class ImageBox : public Control
         {
         public:
-            ImageBox(Window* window, Position position, std::wstring text);
+            ImageBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 
 #if _WIN32_WINNT >= 0x0600
@@ -395,7 +455,7 @@ namespace NW
         class ProgressBar : public Control
         {
         public:
-            ProgressBar(Window* window, Position position, std::wstring text);
+            ProgressBar(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
             void SetRange(Range range);
             Range GetRange();
@@ -408,7 +468,7 @@ namespace NW
             ProgressBarState GetState();
             void SetMarquee(bool enabled, int updateTime = 30);
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 
 #endif
@@ -416,10 +476,10 @@ namespace NW
         class Static : public Control
         {
         public:
-            Static(Window* window, Position position, std::wstring text);
+            Static(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 
         enum class TextBoxTextAlign {
@@ -445,33 +505,33 @@ namespace NW
         class TextBoxMultiline : public TextBoxBase
         {
         public:
-            TextBoxMultiline(Window* window, Position position, std::wstring text);
+            TextBoxMultiline(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
             LRESULT GetLineIndex(LRESULT line);
             LRESULT GetLineLength(LRESULT line);
             LRESULT GetLineCount();
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 
         class TextBoxSingleline : public TextBoxBase
         {
         public:
-            TextBoxSingleline(Window* window, Position position, std::wstring text);
+            TextBoxSingleline(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
             void SetPasswordMode(bool passwordMode);
             bool GetPasswordMode();
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 
 #if _WIN32_WINNT >= 0x0600
         class TrackBar : public Control
         {
         public:
-            TrackBar(Window* window, Position position, std::wstring text);
+            TrackBar(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
 
             void SetMin(int min, bool redraw = true);
             void SetMax(int max, bool redraw = true);
@@ -484,7 +544,7 @@ namespace NW
             bool GetTicksVisibility();
 
         private:
-            void create(std::wstring text, Position position) override;
+            void create(std::wstring text, Position position, LONG_PTR customStyles) override;
         };
 #endif
     }

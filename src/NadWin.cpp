@@ -5,21 +5,51 @@
 namespace NW
 {
     namespace UI {
-        bool HasStyle(HWND hwnd, LONG style)
+        template<class Interface>
+        inline void DXSafeRelease(Interface** ppInterfaceToRelease)
         {
-            return GetWindowLongPtrW(hwnd, GWL_STYLE) & style;
+            if (*ppInterfaceToRelease != nullptr)
+            {
+                (*ppInterfaceToRelease)->Release();
+                (*ppInterfaceToRelease) = nullptr;
+            }
         }
 
-        void AppendStyle(HWND hwnd, LONG style) 
+        LONG_PTR GetStyle(HWND hwnd)
         {
-            LONG_PTR currentStyle = GetWindowLongPtrW(hwnd, GWL_STYLE);
-            SetWindowLongPtrW(hwnd, GWL_STYLE, currentStyle | style);
+            return GetWindowLongPtrW(hwnd, GWL_STYLE);
         }
 
-        void RemoveStyle(HWND hwnd, LONG style)
+        void SetStyle(HWND hwnd, LONG_PTR style)
         {
-            LONG_PTR currentStyle = GetWindowLongPtrW(hwnd, GWL_STYLE);
-            SetWindowLongPtrW(hwnd, GWL_STYLE, currentStyle & ~style);
+            SetWindowLongPtrW(hwnd, GWL_STYLE, style);
+        }
+
+        bool HasStyle(HWND hwnd, LONG_PTR style)
+        {
+            return GetStyle(hwnd) & style;
+        }
+
+        void AppendStyle(HWND hwnd, LONG_PTR style)
+        {
+            LONG_PTR currentStyle = GetStyle(hwnd);
+            SetStyle(hwnd, currentStyle | style);
+        }
+
+        void RemoveStyle(HWND hwnd, LONG_PTR style)
+        {
+            LONG_PTR currentStyle = GetStyle(hwnd);
+            SetStyle(hwnd, currentStyle & ~style);
+        }
+
+        LONG_PTR GetExStyle(HWND hwnd)
+        {
+            return GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        }
+
+        void SetExStyle(HWND hwnd, LONG_PTR style)
+        {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, style);
         }
 
         //
@@ -187,6 +217,10 @@ namespace NW
 
         App::~App()
         {
+#ifdef NW_ENABLE_DIRECTX_FEATURES
+            DXSafeRelease(&pD2DFactory);
+            UnregisterClassW(L"CANVAS2D_CLASS_NAME", hInstance);
+#endif
             UnregisterClassW(AppName.c_str(), hInstance);
             initialized = false;
         }
@@ -194,10 +228,10 @@ namespace NW
         WPARAM App::MessageLoop()
         {
             MSG msg;
-            while (GetMessage(&msg, nullptr, 0, 0) != 0)
+            while (::GetMessageW(&msg, nullptr, 0, 0) != 0)
             {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
+                ::TranslateMessage(&msg);
+                ::DispatchMessageW(&msg);
             }
             return msg.wParam;
         }
@@ -241,6 +275,24 @@ namespace NW
 
             if (!RegisterClassExW(&wcx)) throw std::runtime_error("Failed to register application class");
             this->AppName = AppName;
+
+#ifdef NW_ENABLE_DIRECTX_FEATURES
+            HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &pD2DFactory);
+            if (!SUCCEEDED(hr)) throw std::runtime_error("Failed to create ID2D1Factory factory");
+
+            WNDCLASSEXW canvas2Dclass = { 0 };
+
+            canvas2Dclass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+            canvas2Dclass.cbSize = sizeof(WNDCLASSEXW);
+            canvas2Dclass.lpfnWndProc = reinterpret_cast<WNDPROC>(Canvas2D::canvasProc);
+            canvas2Dclass.hInstance = App::hInstance;
+            canvas2Dclass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+            canvas2Dclass.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+            canvas2Dclass.hbrBackground = reinterpret_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
+            canvas2Dclass.lpszClassName = CANVAS2D_CLASS_NAME;
+
+            if (!RegisterClassExW(&canvas2Dclass)) throw std::runtime_error("Failed to register canvas2d class");
+#endif
             initialized = true;
         }
 
@@ -254,6 +306,9 @@ namespace NW
         std::wstring App::AppName = L"";
         HINSTANCE App::hInstance = nullptr;
         bool App::initialized = false;
+#ifdef NW_ENABLE_DIRECTX_FEATURES
+        ID2D1Factory* App::pD2DFactory = nullptr;
+#endif
 
         //
         //
@@ -412,7 +467,7 @@ namespace NW
         {
             hwnd = CreateWindowExW(0L, App::AppName.c_str(), WindowName.c_str(), WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN, x, y, width, height, nullptr, nullptr, App::hInstance, nullptr);
             if (!hwnd) throw std::runtime_error("Failed to create window");
-            SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
         }
 
         LRESULT CALLBACK Window::proc(UINT msg, WPARAM wParam, LPARAM lParam)
@@ -494,13 +549,27 @@ namespace NW
             case WM_MOVE:
                 if (this->EventHandler) this->EventHandler(WindowEventTypes::Move, &windowEventInfo);
                 break;
+            case WM_MOVING:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::Moving, &windowEventInfo);
+                break;
             case WM_SIZE:
                 if (this->EventHandler) this->EventHandler(WindowEventTypes::Size, &windowEventInfo);
+                break;
+            case WM_SIZING:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::Sizing, &windowEventInfo);
                 break;
             case WM_COMMAND:
                 PostMessageW(reinterpret_cast<HWND>(lParam), WM_COMMAND, wParam, lParam);
                 break;
-            case WM_ERASEBKGND:
+            case WM_PAINT:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::Paint, &windowEventInfo);
+                break;
+            default:
+                if (this->EventHandler) this->EventHandler(WindowEventTypes::Undefined, &windowEventInfo);
+                break;
+            }
+
+            if (!windowEventInfo.overrideProcResult && msg == WM_ERASEBKGND)
             {
                 HDC hdc = (HDC)(wParam);
                 RECT rc; GetClientRect(this->hwnd, &rc);
@@ -508,10 +577,6 @@ namespace NW
                 FillRect(hdc, &rc, brush);
                 DeleteObject(brush);
                 return true;
-            }
-            default:
-                if (this->EventHandler) this->EventHandler(WindowEventTypes::Undefined, &windowEventInfo);
-                break;
             }
 
             if (windowEventInfo.overrideProcResult) return windowEventInfo.result;
@@ -626,6 +691,27 @@ namespace NW
             return Position(&rc);
         }
 
+        int Control::GetWidth()
+        {
+            RECT rc;
+            GetWindowRect(hwnd, &rc);
+            return rc.right - rc.left;
+        }
+
+        int Control::GetHeight()
+        {
+            RECT rc;
+            GetWindowRect(hwnd, &rc);
+            return rc.bottom - rc.top;
+        }
+
+        Position Control::GetClientArea()
+        {
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+            return Position(&rc);
+        }
+
         //
         // protected:
         //
@@ -635,7 +721,7 @@ namespace NW
 
         }
 
-        void Control::create(std::wstring text, Position position)
+        void Control::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
             throw std::runtime_error("Can't create pure control class");
         }
@@ -648,33 +734,27 @@ namespace NW
             SetFont(&window->defaultFont);
         }
 
-        void Control::processMessage(ControlEventInfo* eventInfo)
+        LRESULT Control::processMessage(ControlEventInfo* eventInfo)
         {
-            
+            MSG* msg = eventInfo->msg;
+            return DefSubclassProc(msg->hwnd, msg->message, msg->wParam, msg->lParam);
         }
 
-        LRESULT CALLBACK Control::ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+        void Control::handleEvents(ControlEventInfo* controlEventInfo)
         {
-            Control* control = reinterpret_cast<Control*>(dwRefData);
-            ControlEventInfo controlEventInfo;
-            controlEventInfo.uMsg = msg;
-            controlEventInfo.wParam = wParam;
-            controlEventInfo.lParam = lParam;
-            controlEventInfo.control = control;
+            Control* control = controlEventInfo->control;
 
-            control->processMessage(&controlEventInfo);
-
-            switch (msg)
+            switch (controlEventInfo->msg->message)
             {
             case WM_DESTROY:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::Destroy, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::Destroy, controlEventInfo);
                 break;
             case WM_NCDESTROY:
                 RemoveWindowSubclass(control->hwnd, Control::ControlProc, 0);
                 break;
             case WM_MOUSEMOVE:
             {
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMove, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMove, controlEventInfo);
 
                 TRACKMOUSEEVENT tme = { 0 };
                 tme.cbSize = sizeof(tme);
@@ -685,66 +765,95 @@ namespace NW
                 if (control->isOver) break;
                 control->isOver = true;
 
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseOver, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseOver, controlEventInfo);
                 break;
             }
             case WM_LBUTTONDBLCLK:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftDoubleClick, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftDoubleClick, controlEventInfo);
                 break;
             case WM_LBUTTONDOWN:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftDown, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftDown, controlEventInfo);
                 break;
             case WM_LBUTTONUP:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftUp, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeftUp, controlEventInfo);
                 break;
             case WM_RBUTTONDBLCLK:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightDoubleClick, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightDoubleClick, controlEventInfo);
                 break;
             case WM_RBUTTONDOWN:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightDown, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightDown, controlEventInfo);
                 break;
             case WM_RBUTTONUP:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightUp, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseRightUp, controlEventInfo);
                 break;
             case WM_MBUTTONDBLCLK:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleDoubleClick, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleDoubleClick, controlEventInfo);
                 break;
             case WM_MBUTTONDOWN:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleDown, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleDown, controlEventInfo);
                 break;
             case WM_MBUTTONUP:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleUp, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseMiddleUp, controlEventInfo);
                 break;
             case WM_MOUSELEAVE:
                 if (!control->isOver) break;
                 control->isOver = false;
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeave, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::MouseLeave, controlEventInfo);
                 break;
             case WM_KEYDOWN:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyDown, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyDown, controlEventInfo);
                 break;
             case WM_KEYUP:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyUp, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyUp, controlEventInfo);
                 break;
             case WM_CHAR:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyChar, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::KeyChar, controlEventInfo);
                 break;
             case WM_SETFOCUS:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::Focus, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::Focus, controlEventInfo);
                 break;
             case WM_KILLFOCUS:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::RemoveFocus, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::RemoveFocus, controlEventInfo);
+                break;
+            case WM_MOVE:
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::Move, controlEventInfo);
+                break;
+            case WM_MOVING:
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::Moving, controlEventInfo);
+                break;
+            case WM_SIZE:
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::Size, controlEventInfo);
+                break;
+            case WM_SIZING:
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::Sizing, controlEventInfo);
+                break;
+            case WM_PAINT:
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::Paint, controlEventInfo);
                 break;
             case WM_COMMAND:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::FromParent_Command, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::FromParent_Command, controlEventInfo);
                 break;
             default:
-                if (control->EventHandler) control->EventHandler(ControlEventTypes::Undefined, &controlEventInfo);
+                if (control->EventHandler) control->EventHandler(ControlEventTypes::Undefined, controlEventInfo);
                 break;
             }
+        }
+
+        LRESULT CALLBACK Control::ControlProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+        {
+            Control* control = reinterpret_cast<Control*>(dwRefData);
+            ControlEventInfo controlEventInfo;
+
+            MSG messageStruct = { hwnd, msg, wParam, lParam };
+
+            controlEventInfo.msg = &messageStruct;
+            controlEventInfo.control = control;
+
+            handleEvents(&controlEventInfo);
 
             if (controlEventInfo.overrideProcResult) return controlEventInfo.result;
-            return DefSubclassProc(hwnd, msg, wParam, lParam);
+
+            return control->processMessage(&controlEventInfo);
         }
 
         //
@@ -757,21 +866,102 @@ namespace NW
         // public:
         //
 
-        Button::Button(Window* window, Position position, std::wstring text)
+        Button::Button(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         //
         // private:
         //
 
-        void Button::create(std::wstring text, Position position)
+        void Button::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(0, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
+
+#ifdef NW_ENABLE_DIRECTX_FEATURES
+
+        //
+        //
+        // class Canvas2D
+        //
+        //
+
+        //
+        // public:
+        //
+
+        Canvas2D::Canvas2D(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
+        {
+            this->window = window;
+            create(text, position, customStyles);
+
+            App::pD2DFactory->CreateHwndRenderTarget(
+                D2D1::RenderTargetProperties(),
+                D2D1::HwndRenderTargetProperties(
+                    hwnd,
+                    D2D1::SizeU(
+                        position.width,
+                        position.height
+                    )
+                ),
+                &pRT
+            );
+        }
+
+        Canvas2D::~Canvas2D()
+        {
+            DXSafeRelease(&pRT);
+        }
+
+        ID2D1HwndRenderTarget* Canvas2D::GetHwndRenderTarget()
+        {
+            return pRT;
+        }
+
+        //
+        // private:
+        //
+
+        void Canvas2D::create(std::wstring text, Position position, LONG_PTR customStyles)
+        {
+            hwnd = CreateWindowExW(0L, CANVAS2D_CLASS_NAME, text.c_str(), WS_VISIBLE | WS_CHILD | WS_CLIPSIBLINGS | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            setWindowValues();
+        }
+
+        void Canvas2D::setWindowValues()
+        {
+            if (!hwnd) throw std::runtime_error("Failed to create");
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+        }
+
+        LRESULT Canvas2D::processMessage(ControlEventInfo* eventInfo)
+        {
+            if (eventInfo->msg->message == WM_ERASEBKGND) return 0;
+            return DefWindowProcW(eventInfo->msg->hwnd, eventInfo->msg->message, eventInfo->msg->wParam, eventInfo->msg->lParam);
+        }
+
+        LRESULT Canvas2D::canvasProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+        {
+            Control* control = reinterpret_cast<Control*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+            if (!control) return DefWindowProcW(hwnd, msg, wParam, lParam);
+            ControlEventInfo controlEventInfo;
+
+            MSG messageStruct = { hwnd, msg, wParam, lParam };
+
+            controlEventInfo.msg = &messageStruct;
+            controlEventInfo.control = control;
+
+            handleEvents(&controlEventInfo);
+
+            if (controlEventInfo.overrideProcResult) return controlEventInfo.result;
+            return control->processMessage(&controlEventInfo);
+        }
+
+#endif
 
         //
         //
@@ -783,10 +973,10 @@ namespace NW
         // public:
         //
 
-        CheckBox::CheckBox(Window* window, Position position, std::wstring text)
+        CheckBox::CheckBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         void CheckBox::SetChecked(bool checked)
@@ -808,15 +998,17 @@ namespace NW
         // private:
         //
 
-        void CheckBox::create(std::wstring text, Position position)
+        void CheckBox::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(WS_EX_TRANSPARENT, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_CHECKBOX, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_TRANSPARENT, L"BUTTON", text.c_str(), WS_VISIBLE | WS_CHILD | BS_CHECKBOX | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
-        void CheckBox::processMessage(ControlEventInfo* eventInfo)
+        LRESULT CheckBox::processMessage(ControlEventInfo* eventInfo)
         {
-            if (eventInfo->uMsg == WM_COMMAND) ToggleChecked();
+            MSG* msg = eventInfo->msg;
+            if (msg->message == WM_COMMAND) ToggleChecked();
+            return DefSubclassProc(msg->hwnd, msg->message, msg->wParam, msg->lParam);
         }
 
         //
@@ -836,10 +1028,10 @@ namespace NW
             if (result == CB_ERRSPACE) throw std::runtime_error("Failed to set text");
         }
 
-        ComboBox::ComboBox(Window* window, Position position, std::wstring text)
+        ComboBox::ComboBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         LRESULT ComboBox::AddString(std::wstring str)
@@ -915,9 +1107,9 @@ namespace NW
         // private:
         //
 
-        void ComboBox::create(std::wstring text, Position position)
+        void ComboBox::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(0, WC_COMBOBOXW, text.c_str(), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, WC_COMBOBOXW, text.c_str(), CBS_DROPDOWN | CBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -931,10 +1123,10 @@ namespace NW
         // public:
         //
 
-        DatePicker::DatePicker(Window* window, Position position, std::wstring text)
+        DatePicker::DatePicker(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         void DatePicker::SetTime(SYSTEMTIME time)
@@ -993,9 +1185,9 @@ namespace NW
         // private:
         //
 
-        void DatePicker::create(std::wstring text, Position position)
+        void DatePicker::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(0, DATETIMEPICK_CLASSW, text.c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | DTS_SHOWNONE, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, DATETIMEPICK_CLASSW, text.c_str(), WS_BORDER | WS_CHILD | WS_VISIBLE | DTS_SHOWNONE | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -1009,10 +1201,10 @@ namespace NW
         // public:
         //
 
-        ListBox::ListBox(Window* window, Position position, std::wstring text)
+        ListBox::ListBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         void ListBox::SetText(std::wstring text)
@@ -1126,9 +1318,9 @@ namespace NW
         // private:
         //
 
-        void ListBox::create(std::wstring text, Position position)
+        void ListBox::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, text.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTBOXW, text.c_str(), LBS_HASSTRINGS | WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_AUTOVSCROLL | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -1142,19 +1334,19 @@ namespace NW
         // public:
         //
 
-        ImageBox::ImageBox(Window* window, Position position, std::wstring text)
+        ImageBox::ImageBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         //
         // private:
         //
 
-        void ImageBox::create(std::wstring text, Position position)
+        void ImageBox::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(0, L"STATIC", text.c_str(), WS_VISIBLE | WS_CHILD | SS_BITMAP, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, L"STATIC", text.c_str(), WS_VISIBLE | WS_CHILD | SS_BITMAP | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -1170,10 +1362,10 @@ namespace NW
         // public:
         //
 
-        ProgressBar::ProgressBar(Window* window, Position position, std::wstring text)
+        ProgressBar::ProgressBar(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         void ProgressBar::SetRange(Range range)
@@ -1262,9 +1454,9 @@ namespace NW
         // private:
         //
 
-        void ProgressBar::create(std::wstring text, Position position)
+        void ProgressBar::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(0, PROGRESS_CLASSW, text.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, PROGRESS_CLASSW, text.c_str(), WS_VISIBLE | WS_CHILD | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 #endif
@@ -1279,19 +1471,19 @@ namespace NW
         // public:
         //
 
-        Static::Static(Window* window, Position position, std::wstring text)
+        Static::Static(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         //
         // private:
         //
 
-        void Static::create(std::wstring text, Position position)
+        void Static::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(WS_EX_TRANSPARENT, L"STATIC", text.c_str(), WS_VISIBLE | WS_CHILD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_TRANSPARENT, L"STATIC", text.c_str(), WS_VISIBLE | WS_CHILD | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -1371,10 +1563,10 @@ namespace NW
         // public:
         //
 
-        TextBoxMultiline::TextBoxMultiline(Window* window, Position position, std::wstring text)
+        TextBoxMultiline::TextBoxMultiline(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         LRESULT TextBoxMultiline::GetLineIndex(LRESULT line)
@@ -1396,9 +1588,9 @@ namespace NW
         // private:
         //
 
-        void TextBoxMultiline::create(std::wstring text, Position position)
+        void TextBoxMultiline::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_AUTOVSCROLL | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 
@@ -1412,10 +1604,10 @@ namespace NW
         // public:
         //
 
-        TextBoxSingleline::TextBoxSingleline(Window* window, Position position, std::wstring text)
+        TextBoxSingleline::TextBoxSingleline(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         void TextBoxSingleline::SetPasswordMode(bool passwordMode)
@@ -1433,9 +1625,9 @@ namespace NW
         // private:
         //
 
-        void TextBoxSingleline::create(std::wstring text, Position position)
+        void TextBoxSingleline::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_PASSWORD, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", text.c_str(), WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_PASSWORD | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
             SetPasswordMode(false);
         }
@@ -1451,10 +1643,10 @@ namespace NW
         // public:
         //
 
-        TrackBar::TrackBar(Window* window, Position position, std::wstring text)
+        TrackBar::TrackBar(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
         {
             this->window = window;
-            create(text, position);
+            create(text, position, customStyles);
         }
 
         void TrackBar::SetMin(int min, bool redraw)
@@ -1506,9 +1698,9 @@ namespace NW
         // private:
         //
 
-        void TrackBar::create(std::wstring text, Position position)
+        void TrackBar::create(std::wstring text, Position position, LONG_PTR customStyles)
         {
-            hwnd = CreateWindowExW(0, TRACKBAR_CLASSW, text.c_str(), WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
+            hwnd = CreateWindowExW(0, TRACKBAR_CLASSW, text.c_str(), WS_VISIBLE | WS_CHILD | TBS_AUTOTICKS | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
             setWindowValues();
         }
 #endif
