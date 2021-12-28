@@ -1676,7 +1676,7 @@ namespace NW
 
         int TrackBar::GetPos()
         {
-            SendMessageW(hwnd, TBM_GETPOS, 0, 0);
+            return SendMessageW(hwnd, TBM_GETPOS, 0, 0);
         }
 
         void TrackBar::SetTickFrequency(int frequency)

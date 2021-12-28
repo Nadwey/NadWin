@@ -23,7 +23,11 @@
 #include <dwrite.h>
 #endif
 
-#if _WIN32_WINNT < 0x0501
+
+// more information about _WIN32_WINNT -> https://docs.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt?view=msvc-170
+#ifndef _WIN32_WINNT
+#error _WIN32_WINNT is not defined
+#elif _WIN32_WINNT < 0x0501
 #error Minimum _WIN32_WINNT version is 0x0501 (Windows XP)
 // You can try to define your own version above #include <windows.h>
 #else
