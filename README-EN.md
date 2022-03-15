@@ -43,7 +43,6 @@ int main()
     };
 
     window.Show();
-
-    app.MessageLoop();
+    return app.MessageLoop();
 }
 ```
