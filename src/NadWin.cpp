@@ -241,16 +241,18 @@ namespace NW
             return AppName;
         }
 
-        void App::DoEvents()
+        bool App::DoEvents()
         {
             MSG msg;
 
-            while (::PeekMessageW(&msg, nullptr, 0, 0, PM_NOREMOVE))
+            while (::PeekMessageW(&msg, nullptr, 0, 0, 0))
             {
-                ::GetMessageW(&msg, nullptr, 0, 0);
+                if (!::GetMessageW(&msg, nullptr, 0, 0)) return true;
                 ::TranslateMessage(&msg);
                 ::DispatchMessageW(&msg);
             }
+
+            return false;
         }
 
         //
@@ -372,7 +374,6 @@ namespace NW
 
         void Window::SetText(std::wstring text)
         {
-            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
             if (!result) throw std::runtime_error("Failed to set text");
         }
@@ -644,7 +645,6 @@ namespace NW
 
         void Control::SetText(std::wstring text)
         {
-            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
             if (!result) throw std::runtime_error("Failed to set text");
         }
@@ -1023,7 +1023,6 @@ namespace NW
 
         void ComboBox::SetText(std::wstring text)
         {
-            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
             if (result == CB_ERRSPACE) throw std::runtime_error("Failed to set text");
         }
@@ -1209,7 +1208,6 @@ namespace NW
 
         void ListBox::SetText(std::wstring text)
         {
-            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(text.c_str()));
             if (result == LB_ERRSPACE) throw std::runtime_error("Failed to set text");
         }
@@ -1547,7 +1545,6 @@ namespace NW
 #if _WIN32_WINNT >= 0x0600
         void TextBoxBase::SetPlaceholder(std::wstring text)
         {
-            if (!text.length()) return;
             LRESULT result = SendMessageW(hwnd, EM_SETCUEBANNER, false, reinterpret_cast<LPARAM>(text.c_str()));
             if (!result) throw std::runtime_error("Failed to set placeholder");
         }

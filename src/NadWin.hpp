@@ -112,7 +112,7 @@ namespace NW
             static WPARAM MessageLoop();
             static std::wstring GetAppName();
 
-            static void DoEvents();
+            static bool DoEvents();
         private:
             void registerClass(std::wstring&);
             static LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
