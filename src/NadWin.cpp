@@ -1054,10 +1054,11 @@ namespace NW
 		controlEventInfo.msg = &messageStruct;
 		controlEventInfo.control = control;
 
+		LRESULT processMessageResult = control->processMessage(&controlEventInfo);
 		handleEvents(&controlEventInfo);
 
 		if (controlEventInfo.overrideProcResult) return controlEventInfo.result;
-		return control->processMessage(&controlEventInfo);
+		return processMessageResult;
 	}
 
 #endif
