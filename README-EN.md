@@ -25,16 +25,14 @@ Example (MSVC):
 
 int main()
 {
-    namespace UI = NW::UI;
-
-    UI::App app(L"Example app");
-    UI::Window window(L"Example window", CW_USEDEFAULT, CW_USEDEFAULT, 800, 600);
+    NW::App app(L"Example app");
+    NW::Window window(L"Example window", CW_USEDEFAULT, CW_USEDEFAULT, 800, 600);
     
-    UI::Button button(&window, UI::Position(5, 5, 300, 50), L"Hello, World!");
-    button.EventHandler = [&window](UI::ControlEventTypes eventType, UI::ControlEventInfo* eventInfo) {
+    NW::Button button(&window, NW::Position(5, 5, 300, 50), L"Hello, World!");
+    button.EventHandler = [&window](NW::ControlEventTypes eventType, NW::ControlEventInfo* eventInfo) {
         switch (eventType)
         {
-        case NW::UI::ControlEventTypes::FromParent_Command:
+        case NW::ControlEventTypes::FromParent_Command:
             MessageBoxW(window.Hwnd(), L"You clicked the button!", L"Info", MB_OK | MB_ICONINFORMATION);
             break;
         default:
