@@ -1,5 +1,3 @@
-// https://github.com/Nadwey/NadWin
-
 #pragma once
 #ifndef _NADWIN_
 #define _NADWIN_
@@ -53,7 +51,7 @@ namespace NW
 		Timer(UINT interval);
 		~Timer();
 
-		// If the timer is arleady running, it will kill it
+		// If a timer is arleady running, it will be killed
 		void Start();
 		void Stop();
 
@@ -126,7 +124,7 @@ namespace NW
 		int height = 0;
 	};
 
-	// Właściwe UI
+	// Actual UI
 
 	class App {
 	public:
@@ -154,15 +152,13 @@ namespace NW
 #endif
 	};
 
-
-	// Definicja definicji ;-;
 	class Window;
 	class Control;
 	class Button;
 
 	enum class WindowEventTypes
 	{
-		Undefined = 0,
+		Undefined,
 		MouseMove,
 		MouseLeftDoubleClick,
 		MouseLeftDown,
@@ -255,7 +251,7 @@ namespace NW
 
 	enum class ControlEventTypes
 	{
-		Undefined = 0,
+		Undefined,
 		MouseMove,
 		MouseLeftDoubleClick,
 		MouseLeftDown,
@@ -279,7 +275,7 @@ namespace NW
 		Sizing,
 		Destroy,
 		Paint,
-		FromParent_Command // Odbierane z wyższego okna
+		FromParent_Command
 	};
 
 	// Controls
@@ -333,8 +329,7 @@ namespace NW
 	protected:
 		Control();
 
-		// (parent)
-		Window* window = nullptr;
+		Window* window = nullptr; // (parent)
 		HWND hwnd = nullptr;
 		bool isOver = false;
 
@@ -464,20 +459,10 @@ namespace NW
 		void create(std::wstring text, Position position, LONG_PTR customStyles) override;
 	};
 
-	class ImageBox : public Control
-	{
-	public:
-		ImageBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles = 0);
-
-
-	private:
-		void create(std::wstring text, Position position, LONG_PTR customStyles) override;
-	};
-
 #if _WIN32_WINNT >= 0x0600
 
 	enum class ProgressBarState {
-		Normal = 0,
+		Normal,
 		Error,
 		Paused
 	};
@@ -513,7 +498,7 @@ namespace NW
 	};
 
 	enum class TextBoxTextAlign {
-		Left = 0,
+		Left,
 		Center,
 		Right
 	};
@@ -556,8 +541,21 @@ namespace NW
 	private:
 		void create(std::wstring text, Position position, LONG_PTR customStyles) override;
 	};
-
 #if _WIN32_WINNT >= 0x0600
+	class Tooltip {
+	public:
+		Tooltip(HWND parent, std::wstring text);
+		~Tooltip();
+
+		void SetText(std::wstring text);
+		void SetMaxWidth(int maxWidth = -1);
+		int GetMaxWidth();
+
+	private:
+		HWND hwnd = nullptr;
+		HWND parent = nullptr;
+	};
+
 	class TrackBar : public Control
 	{
 	public:

@@ -1422,32 +1422,6 @@ namespace NW
 		setWindowValues();
 	}
 
-	//
-	//
-	// class ImageBox
-	//
-	//
-
-	//
-	// public:
-	//
-
-	ImageBox::ImageBox(Window* window, Position position, std::wstring text, LONG_PTR customStyles)
-	{
-		this->window = window;
-		create(text, position, customStyles);
-	}
-
-	//
-	// private:
-	//
-
-	void ImageBox::create(std::wstring text, Position position, LONG_PTR customStyles)
-	{
-		hwnd = CreateWindowExW(0, L"STATIC", text.c_str(), WS_VISIBLE | WS_CHILD | SS_BITMAP | customStyles, position.x, position.y, position.width, position.height, window->Hwnd(), nullptr, nullptr, nullptr);
-		setWindowValues();
-	}
-
 #if _WIN32_WINNT >= 0x0600
 
 	//
@@ -1730,6 +1704,62 @@ namespace NW
 	}
 
 #if _WIN32_WINNT >= 0x0600
+
+	//
+	//
+	// class Tooltip
+	//
+	//
+
+	//
+	// public:
+	//
+
+	Tooltip::Tooltip(HWND parent, std::wstring text)
+	{
+		hwnd = CreateWindowExW(0, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_BALLOON | TTS_ALWAYSTIP, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, parent, nullptr, nullptr, nullptr);
+		this->parent = parent;
+
+		hwnd = CreateWindowEx(WS_EX_TOPMOST, TOOLTIPS_CLASSW, nullptr, WS_POPUP | TTS_NOPREFIX | TTS_ALWAYSTIP, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, parent, nullptr,	nullptr, nullptr);
+		SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+		TTTOOLINFOW ti = { 0 };
+		ti.cbSize = sizeof(TTTOOLINFOW);
+		ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
+		ti.hwnd = parent;
+		ti.uId = reinterpret_cast<UINT_PTR>(parent);
+		ti.lpszText = const_cast<LPWSTR>(text.c_str());
+		GetClientRect(parent, &ti.rect);
+
+		SendMessageW(hwnd, TTM_ADDTOOL, 0, reinterpret_cast<LPARAM>(&ti));
+	}
+
+	Tooltip::~Tooltip()
+	{
+		DestroyWindow(hwnd);
+	}
+
+	void Tooltip::SetText(std::wstring text)
+	{
+		TTTOOLINFOW ti = { 0 };
+		ti.lpszText = const_cast<LPWSTR>(text.c_str());
+		ti.hwnd = parent;
+		ti.uId = reinterpret_cast<UINT_PTR>(parent);
+		ti.cbSize = sizeof(TTTOOLINFOW);
+
+		SendMessageW(hwnd, TTM_UPDATETIPTEXTW, 0, reinterpret_cast<LPARAM>(&ti));
+	}
+
+	void Tooltip::SetMaxWidth(int maxWidth)
+	{
+		SendMessageW(hwnd, TTM_SETMAXTIPWIDTH, 0, maxWidth);
+	}
+
+	int Tooltip::GetMaxWidth()
+	{
+		return SendMessageW(hwnd, TTM_GETMAXTIPWIDTH, 0, 0);
+	}
+	
 	//
 	//
 	// class TrackBar
