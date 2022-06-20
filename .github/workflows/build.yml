@@ -1,0 +1,23 @@
+name: Build and Deploy
+on:
+    push:
+        branches:
+            - main
+permissions:
+    contents: write
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+
+            - name: "Set up Clang"
+              uses: egor-tensin/setup-clang@v1
+              with:
+                  version: latest
+                  platform: x64
+
+            - name: Build
+              run: |
+                  clang++ example.cpp -luser32.lib -lComctl32.lib -lGdi32.lib -o program.exe
