@@ -1,0 +1,99 @@
+.container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.headerContent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.headerContent > * {
+    margin: 0 40px;
+}
+
+.mainContent {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+}
+
+.overviewSection {
+    background-color: #333333;
+    padding: 30px 0 0;
+}
+
+[data-theme="light"] .overviewSection {
+    background-color: #cccccc;
+}
+
+.customShapeDividerBottom1655667759 {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    overflow: hidden;
+    line-height: 0;
+    transform: rotate(180deg);
+}
+
+.customShapeDividerBottom1655667759 svg {
+    position: relative;
+    display: block;
+    width: calc(100% + 1.3px);
+    height: 66px;
+    fill: #333333;
+}
+
+[data-theme="light"] .customShapeDividerBottom1655667759 svg {
+    fill: #cccccc;
+}
+
+.featuresSection {
+    background-color: #222222;
+}
+
+[data-theme="light"] .featuresSection {
+    background-color: #eeeeee;
+}
+
+.customShapeDividerBottom1655670086 {
+    width: 100%;
+    overflow: hidden;
+    line-height: 0;
+    transform: rotate(180deg);
+}
+
+.customShapeDividerBottom1655670086 svg {
+    position: relative;
+    display: block;
+    width: calc(100% + 400px);
+    height: 100px;
+    fill: #222222;
+}
+
+[data-theme="light"] .customShapeDividerBottom1655670086 svg {
+    fill: #eeeeee;
+}
+
+.getIt {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    text-decoration: none !important;
+}
+
+.getIt > span {
+    font-size: 5vw;
+}
