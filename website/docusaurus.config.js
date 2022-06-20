@@ -57,6 +57,11 @@ const config = {
                 theme: lightCodeTheme,
                 darkTheme: darkCodeTheme,
             },
+            announcementBar: {
+                id: "docs_note",
+                content: "Documentation is in progress btw",
+                isCloseable: true
+            }
         }),
 };
 
