@@ -58,8 +58,8 @@ const config = {
                 darkTheme: darkCodeTheme,
             },
             announcementBar: {
-                id: "docs_note",
-                content: "Documentation is in progress btw",
+                id: "no_docs_note",
+                content: "Documentation is not in progress, see <a href=\"https://github.com/Nadwey/NadWin/issues/1\">#1</a>",
                 isCloseable: true
             }
         }),

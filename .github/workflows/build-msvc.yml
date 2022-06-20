@@ -1,0 +1,20 @@
+name: Build with MSVC
+on:
+    push:
+        branches:
+            - main
+permissions:
+    contents: write
+jobs:
+    build-and-deploy:
+        runs-on: windows-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+
+            - name: Set up MSVC
+              uses: ilammy/msvc-dev-cmd@v1
+
+            - name: Build
+              run: |
+                  cl example.cpp -o msvc.exe user32.lib gdi32.lib comctl32.lib
