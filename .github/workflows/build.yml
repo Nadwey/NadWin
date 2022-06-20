@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build
 on:
     push:
         branches:
@@ -7,7 +7,7 @@ permissions:
     contents: write
 jobs:
     build-and-deploy:
-        runs-on: ubuntu-latest
+        runs-on: windows-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v3
