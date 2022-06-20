@@ -1,0 +1,23 @@
+name: Build with Clang
+on:
+    push:
+        branches:
+            - main
+permissions:
+    contents: write
+jobs:
+    build-and-deploy:
+        runs-on: windows-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+
+            - name: "Set up Clang"
+              uses: egor-tensin/setup-clang@v1
+              with:
+                  version: latest
+                  platform: x64
+
+            - name: Build
+              run: |
+                  clang++ example.cpp -lgdi32 -lcomctl32 -luser32 -o program.exe

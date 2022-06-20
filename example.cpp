@@ -1,9 +1,5 @@
 #include "src/NadWin.cpp"
 
-#pragma comment(lib, "user32.lib")
-#pragma comment(lib, "comctl32.lib")
-#pragma comment(lib, "gdi32.lib")
-
 int main()
 {
     NW::App app(L"app name");
