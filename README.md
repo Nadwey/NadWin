@@ -6,6 +6,4 @@ WinAPI GUI Library (kind of a wrapper).
 
 ## Usage
 
-See [examples/](examples/)
-
-> ⚠️ Examples were tested on MSVC
+See the [docs](https://nadwey.github.io/NadWin/docs/#examples)

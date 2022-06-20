@@ -43,9 +43,7 @@ export default function Hello() {
                 </div>
             </header>
             <main className={styles.mainContent}>
-                <section
-                    className={styles.overviewSection}
-                >
+                <section className={styles.overviewSection}>
                     <p
                         style={{
                             fontSize: "20px",
@@ -82,9 +80,7 @@ export default function Hello() {
                         </svg>
                     </div>
                 </section>
-                <section
-                    className={styles.featuresSection}
-                >
+                <section className={styles.featuresSection}>
                     <p
                         style={{
                             display: "flex",
@@ -135,6 +131,58 @@ export default function Hello() {
                             This library is just wrapper to WinAPI which can work on a potato from 90's (as long as it's running Windows XP+ lol).
                             <br />
                             Statistically 1 of 1 (100%) people testing this library was able to get it working on multiple machines.
+                        </div>
+                    </p>
+                    <p
+                        style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            flexDirection: "row",
+                            margin: "20px 2vw",
+                        }}
+                    >
+                        <div
+                            style={{
+                                margin: "0 25px",
+                            }}
+                        >
+                            <h2>🚀🚀🚀 Blazingly fast and small execut🚀able size🚀🚀</h2>
+                            <br />
+                            Seriously, just try it.
+                        </div>
+                        <img
+                            style={{
+                                width: "50%",
+                            }}
+                            src="img/very-cool.png"
+                        />
+                    </p>
+                    <p
+                        style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            flexDirection: "row",
+                            margin: "20px 2vw",
+                        }}
+                    >
+                        <img
+                            style={{
+                                width: "50%",
+                            }}
+                            src="img/shrek.png"
+                        />
+                        <div
+                            style={{
+                                margin: "0 25px",
+                            }}
+                        >
+                            <h2>Not convinced yet?</h2>
+                            <br />
+                            What if I told you that Shrek is using NadWin?
+                            <br />
+                            And he built chromium for Nokia 3310 with it?
                         </div>
                     </p>
                 </section>
