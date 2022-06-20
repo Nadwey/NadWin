@@ -20,4 +20,4 @@ jobs:
 
             - name: Build
               run: |
-                  clang++ example.cpp -luser32.lib -lComctl32.lib -lGdi32.lib -o program.exe
+                  clang++ example.cpp -o program.exe
