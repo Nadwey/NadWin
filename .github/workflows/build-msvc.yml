@@ -6,7 +6,7 @@ on:
 permissions:
     contents: write
 jobs:
-    build-and-deploy:
+    build-with-msvc:
         runs-on: windows-latest
         steps:
             - name: Checkout
