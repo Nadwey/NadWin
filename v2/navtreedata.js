@@ -24,7 +24,7 @@
 */
 var NAVTREE =
 [
-  [ "My Project", "index.html", [
+  [ "NadWin", "index.html", [
     [ "Welcome to NadWin documentation", "index.html", [
       [ "NadWin v2 roadmap", "index.html#autotoc_md1", null ]
     ] ],
