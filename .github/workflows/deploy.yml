@@ -1,28 +1,21 @@
-name: Build and Deploy
-on:
-    push:
-        branches:
-            - main
-        paths:
-            - website/**
+name: Generate docs and Deploy
+on: [push]
 permissions:
     contents: write
 jobs:
-    build-and-deploy:
+    generate-docs-and-deploy:
         concurrency: ci-${{ github.ref }} # Recommended if you intend to make multiple deployments in quick succession.
         runs-on: ubuntu-latest
         steps:
             - name: Checkout 🛎️
               uses: actions/checkout@v3
 
-            - name: Install and Build
-              run: |
-                  cd website
-                  npm ci
-                  npm run build
+            - name: Generate documentation
+              uses: mattnotmitt/doxygen-action@v1
 
-            - name: Deploy
+            - name: Deploy documentation
               uses: JamesIves/github-pages-deploy-action@v4
               with:
                   branch: gh-pages # The branch the action should deploy to.
-                  folder: website/build # The folder the action should deploy.
+                  folder: html # The folder the action should deploy.
+                  target-folder: v2

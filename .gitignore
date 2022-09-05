@@ -1,15 +1,3 @@
-# Dependencies
-website/node_modules
-
-# Production
-website/build
-
-# Generated files
-website/.docusaurus
-website/.cache-loader
-
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+html
 
 .vscode
