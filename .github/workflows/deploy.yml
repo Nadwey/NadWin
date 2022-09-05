@@ -7,8 +7,11 @@ jobs:
         concurrency: ci-${{ github.ref }} # Recommended if you intend to make multiple deployments in quick succession.
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout 🛎️
+            - name: Checkout
               uses: actions/checkout@v3
+
+            - name: Checkout submodules
+              uses: textbook/git-checkout-submodule-action@master
 
             - name: Generate documentation
               uses: mattnotmitt/doxygen-action@v1
