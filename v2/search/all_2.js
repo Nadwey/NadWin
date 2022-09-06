@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['initialized_0',['initialized',['../classNW_1_1NApp.html#ad48578ab428c34576e7e663b014dff04',1,'NW::NApp']]]
+  ['doxygen_5fmainpage_2emd_0',['DOXYGEN_MAINPAGE.md',['../DOXYGEN__MAINPAGE_8md.html',1,'']]]
 ];

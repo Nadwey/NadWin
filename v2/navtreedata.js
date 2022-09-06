@@ -28,6 +28,7 @@ var NAVTREE =
     [ "Welcome to NadWin documentation", "index.html", [
       [ "NadWin v2 roadmap", "index.html#autotoc_md1", null ]
     ] ],
+    [ "Creating a window", "md_Intro.html", null ],
     [ "Namespaces", "namespaces.html", [
       [ "Namespace List", "namespaces.html", "namespaces_dup" ]
     ] ],

@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.4"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>NadWin: src/NadWin.hpp File Reference</title>
+<title>NadWin: src/NadWin_win.cpp File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -65,7 +65,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('NadWin_8hpp.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('NadWin__win_8cpp.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -85,48 +85,25 @@ $(document).ready(function(){initNavTree('NadWin_8hpp.html',''); initResizable()
 
 <div class="header">
   <div class="summary">
-<a href="#nested-classes">Classes</a> &#124;
-<a href="#namespaces">Namespaces</a> &#124;
 <a href="#define-members">Macros</a>  </div>
-  <div class="headertitle"><div class="title">NadWin.hpp File Reference</div></div>
+  <div class="headertitle"><div class="title">NadWin_win.cpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><code>#include &lt;string&gt;</code><br />
-<code>#include &lt;codecvt&gt;</code><br />
-<code>#include &lt;locale&gt;</code><br />
-<code>#include &lt;stdexcept&gt;</code><br />
-<code>#include &lt;sstream&gt;</code><br />
-</div>
-<p><a href="NadWin_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
-Classes</h2></td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classNW_1_1NApp.html">NW::NApp</a></td></tr>
-<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Application class. There should be only one instance for the whole application.  <a href="classNW_1_1NApp.html#details">More...</a><br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classNW_1_1NWindow.html">NW::NWindow</a></td></tr>
-<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Window class.  <a href="classNW_1_1NWindow.html#details">More...</a><br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
-Namespaces</h2></td></tr>
-<tr class="memitem:namespaceNW"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespaceNW.html">NW</a></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="define-members" name="define-members"></a>
 Macros</h2></td></tr>
-<tr class="memitem:ad167dc99e204e48a4ccb3382f60eb1ab"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="NadWin_8hpp.html#ad167dc99e204e48a4ccb3382f60eb1ab">NADWIN_HPP</a></td></tr>
-<tr class="separator:ad167dc99e204e48a4ccb3382f60eb1ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab04d8fd7aef166339850e1c919c1572a"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="NadWin__win_8cpp.html#ab04d8fd7aef166339850e1c919c1572a">NADWIN_WIN_CPP</a></td></tr>
+<tr class="separator:ab04d8fd7aef166339850e1c919c1572a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Macro Definition Documentation</h2>
-<a id="ad167dc99e204e48a4ccb3382f60eb1ab" name="ad167dc99e204e48a4ccb3382f60eb1ab"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad167dc99e204e48a4ccb3382f60eb1ab">&#9670;&nbsp;</a></span>NADWIN_HPP</h2>
+<a id="ab04d8fd7aef166339850e1c919c1572a" name="ab04d8fd7aef166339850e1c919c1572a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab04d8fd7aef166339850e1c919c1572a">&#9670;&nbsp;</a></span>NADWIN_WIN_CPP</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">#define NADWIN_HPP</td>
+          <td class="memname">#define NADWIN_WIN_CPP</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -138,7 +115,7 @@ Macros</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="dir_68267d1309a1af8e8297ef4c3efbcdba.html">src</a></li><li class="navelem"><a class="el" href="NadWin_8hpp.html">NadWin.hpp</a></li>
+    <li class="navelem"><a class="el" href="dir_68267d1309a1af8e8297ef4c3efbcdba.html">src</a></li><li class="navelem"><a class="el" href="NadWin__win_8cpp.html">NadWin_win.cpp</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.4 </li>
   </ul>
 </div>
