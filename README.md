@@ -18,3 +18,18 @@ int main()
 	return app.Run();
 }
 ```
+
+## TODO
+
+- [ ] Windows implementation
+	- [x] Window creation
+	- [ ] WinGDI rendering
+	- [ ] Direct2D or whatever rendering
+- [ ] Linux (Xorg, Wayland) implementation
+	- [ ] Window creation
+	- [ ] ...?
+	- [ ] Profit
+- [ ] macOS implementation
+	- [ ] Figure out how to get a Mac
+- [ ] Make controls
+- [ ] Make a layout system (probably will be a separate library) or steal one from somewhere
