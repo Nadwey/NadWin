@@ -5,6 +5,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <vector>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -18,6 +19,19 @@
 
 namespace nadwin
 {
+	struct Vector2D {
+		Vector2D() {};
+
+		Vector2D(int x, int y)
+		{
+			this->x = x;
+			this->y = y;
+		}
+
+		int x = 0;
+		int y = 0;
+	};
+
 	//
 	// App
 	//
@@ -46,17 +60,17 @@ namespace nadwin
 		virtual void SetTitle(std::string title) = 0;
 
 		/// <summary>
-		/// Sets the size of the window
-		/// </summary>
-		/// <param name="width">New width of the window</param>
-		/// <param name="height">New height of the window</param>
-		virtual void SetSize(int width, int height) = 0;
-		/// <summary>
 		/// Sets the position of the window
 		/// </summary>
 		/// <param name="x">New x position of the window</param>
 		/// <param name="y">New y position of the window</param>
 		virtual void SetPosition(int x, int y) = 0;
+		/// <summary>
+		/// Sets the size of the window
+		/// </summary>
+		/// <param name="width">New width of the window</param>
+		/// <param name="height">New height of the window</param>
+		virtual void SetSize(int width, int height) = 0;
 
 		/// <summary>
 		/// Shows the window
@@ -66,7 +80,53 @@ namespace nadwin
 		/// Destroys the window
 		/// </summary>
 		virtual void Destroy() = 0;
+
+		void AddControl(class BaseControl* control);
+
+	protected:
+		std::vector<class BaseControl*> m_controls;
+
+		void PaintControl(class BaseControl* control);
+		
+	private:
+		friend BaseControl;
 	};
+
+	class BaseControl {
+	public:
+		BaseControl() {};
+		~BaseControl() {};
+
+		virtual void SetPosition(int x, int y) = 0;
+		virtual void SetSize(int width, int height) = 0;
+
+		virtual void Show() = 0;
+		virtual void Destroy() = 0;
+
+	protected:
+		Vector2D m_position;
+		Vector2D m_size;
+
+		virtual void Paint() = 0;
+
+	private:
+		friend class BaseWindow;
+	};
+
+
+	//
+	// ???
+	//
+
+	void BaseWindow::AddControl(BaseControl* control)
+	{
+		m_controls.push_back(control);
+	}
+
+	void BaseWindow::PaintControl(BaseControl* control)
+	{
+		control->Paint();
+	}
 
 	//
 	// Windows Definitions
@@ -94,8 +154,8 @@ namespace nadwin
 		~WINWindow();
 
 		void SetTitle(std::string title) override;
-		void SetSize(int width, int height) override;
 		void SetPosition(int x, int y) override;
+		void SetSize(int width, int height) override;
 
 		void Show() override;
 		void Destroy() override;
@@ -108,7 +168,7 @@ namespace nadwin
 		friend class WINApp;
 	};
 #endif
-	
+
 	//
 	// Windows Implementations
 	//
@@ -161,7 +221,7 @@ namespace nadwin
 
 		return window->windowProc(msg, wParam, lParam);
 	}
-	
+
 	//
 	// Window
 	//
@@ -194,12 +254,12 @@ namespace nadwin
 		SetWindowTextA(m_hwnd, title.c_str());
 	}
 
-	void WINWindow::SetSize(int width, int height) {
-		SetWindowPos(m_hwnd, nullptr, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER);
-	}
-
 	void WINWindow::SetPosition(int x, int y) {
 		SetWindowPos(m_hwnd, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+	}
+
+	void WINWindow::SetSize(int width, int height) {
+		SetWindowPos(m_hwnd, nullptr, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER);
 	}
 
 	void WINWindow::Show() {
@@ -212,12 +272,75 @@ namespace nadwin
 
 	LRESULT CALLBACK WINWindow::windowProc(UINT msg, WPARAM wparam, LPARAM lparam) {
 		switch (msg) {
-			
+		case WM_PAINT:
+		{
+			for (const auto& control : m_controls)
+			{
+				PaintControl(control);
+			}
+			break;
+		}
 		}
 
 		return DefWindowProcA(m_hwnd, msg, wparam, lparam);
 	}
 #endif
+
+	//
+	// Controls - Definitions
+	//
+
+	class Button : public BaseControl {
+	public:
+		Button();
+		~Button();
+
+		void SetPosition(int x, int y);
+		void SetSize(int width, int height);
+
+		void Show();
+		void Destroy();
+
+	protected:
+		void Paint() override;
+	};
+
+	Button::Button()
+	{
+
+	}
+
+	Button::~Button()
+	{
+
+	}
+
+	void Button::SetPosition(int x, int y)
+	{
+		m_position.x = x;
+		m_position.y = y;
+	}
+
+	void Button::SetSize(int width, int height)
+	{
+		m_size.x = width;
+		m_size.y = height;
+	}
+
+	void Button::Show()
+	{
+
+	}
+
+	void Button::Destroy()
+	{
+
+	}
+
+	void Button::Paint()
+	{
+		NADWIN_LOG("Button::Paint()");
+	}
 
 #if defined(_WIN32)
 	typedef WINWindow Window;
