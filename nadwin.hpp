@@ -12,9 +12,13 @@
 #endif
 
 #if _DEBUG
-#define NADWIN_LOG(message) printf("[NadWin] - [%s:%d]: %s\n", __FILE__, __LINE__, message);
+#define NADWIN_LOG(message) printf("\033[36m[NadWin : LOG] - [%s:%d]: %s\033[0m\n", __FILE__, __LINE__, message);
+#define NADWIN_WARN(message) printf("\033[33m[NadWin : WARN] - [%s:%d]: %s\033[0m\n", __FILE__, __LINE__, message);
+#define NADWIN_ERROR(message) printf("\033[31m[NadWin : ERROR] - [%s:%d]: %s\033[0m\n", __FILE__, __LINE__, message);
 #else
 #define NADWIN_LOG(message)
+#define NADWIN_WARN(message)
+#define NADWIN_ERROR(message)
 #endif
 
 namespace nadwin
@@ -36,6 +40,11 @@ namespace nadwin
 		unsigned char r = 0;
 		unsigned char g = 0;
 		unsigned char b = 0;
+
+		COLORREF ToCOLORREF()
+		{
+			return RGB(r, g, b);
+		}
 	};
 
 	//
@@ -54,12 +63,21 @@ namespace nadwin
 		virtual int Run() = 0;
 	};
 
+	class BaseRenderer {
+	public:
+		virtual void DrawRect(Vector2D position, Vector2D size, ColorRGB color) = 0;
+		virtual void PaintText(Vector2D position, Vector2D size, std::string text, ColorRGB color) = 0; // stupid winapi macros
+	};
+
 	class BaseRenderingContext {
-	protected:
-		virtual void Init() = 0;
+	public:
+		virtual void Init(class BaseWindow* window) = 0;
 		virtual void Shutdown() = 0;
 
+		BaseRenderer* GetRenderer();
 
+	protected:
+		BaseRenderer* m_renderer = nullptr;
 	};
 
 	/// <summary>
@@ -97,50 +115,73 @@ namespace nadwin
 
 		void AddControl(class BaseControl* control);
 
+		BaseRenderingContext* GetRenderingContext();
+
 	protected:
 		std::vector<class BaseControl*> m_controls;
 
 		void PaintControl(class BaseControl* control);
-		
+
+		BaseRenderingContext* m_renderingContext = nullptr;
 	private:
-		friend BaseControl;
+		friend class BaseControl;
 	};
 
 	class BaseControl {
 	public:
-		BaseControl() {};
-		~BaseControl() {};
-
 		virtual void SetPosition(int x, int y) = 0;
 		virtual void SetSize(int width, int height) = 0;
 
-		virtual void Show() = 0;
 		virtual void Destroy() = 0;
 
 	protected:
 		Vector2D m_position;
 		Vector2D m_size;
 
-		virtual void Paint(BaseWindow* window, BaseRenderingContext* renderingContext) = 0;
+		BaseWindow* m_window = nullptr;
+
+		void RemoveFromWindow();
+
+		virtual void Paint(BaseWindow* window) = 0;
 
 	private:
 		friend class BaseWindow;
 	};
 
-
 	//
 	// ???
 	//
 
+	BaseRenderer* BaseRenderingContext::GetRenderer()
+	{
+		return m_renderer;
+	}
+
 	void BaseWindow::AddControl(BaseControl* control)
 	{
 		m_controls.push_back(control);
+		control->m_window = this;
+	}
+
+	BaseRenderingContext* BaseWindow::GetRenderingContext()
+	{
+		return m_renderingContext;
 	}
 
 	void BaseWindow::PaintControl(BaseControl* control)
 	{
-		control->Paint(this, (BaseRenderingContext*)nullptr); // CHANGE THIS
+		control->Paint(this);
 	}
+
+	void BaseControl::RemoveFromWindow()
+	{
+		if (!m_window)
+		{
+			NADWIN_WARN("Called Destroy() on a control that is not attached to a window, control will not be destroyed!");
+			return;
+		}
+		m_window->m_controls.erase(std::remove(m_window->m_controls.begin(), m_window->m_controls.end(), this), m_window->m_controls.end());
+	};
 
 #if defined(_WIN32)
 	//
@@ -162,12 +203,13 @@ namespace nadwin
 		friend class WINWindow;
 	};
 
-	class WinGDIRenderer {
+	class WinGDIRenderer : public BaseRenderer {
 	public:
 		WinGDIRenderer(HWND hwnd);
 		~WinGDIRenderer();
 
-		void DrawRect(Vector2D position, Vector2D size, ColorRGB color);
+		void DrawRect(Vector2D position, Vector2D size, ColorRGB color) override;
+		void PaintText(Vector2D position, Vector2D size, std::string text, ColorRGB color) override;
 
 	private:
 		HWND m_hwnd = nullptr;
@@ -175,8 +217,8 @@ namespace nadwin
 	};
 
 	class WINRenderingContext : public BaseRenderingContext {
-	protected:
-		void Init() override;
+	public:
+		void Init(BaseWindow* window) override;
 		void Shutdown() override;
 	};
 
@@ -198,6 +240,7 @@ namespace nadwin
 		HWND m_hwnd = nullptr;
 
 		friend class WINApp;
+		friend class WINRenderingContext;
 	};
 #endif
 
@@ -220,7 +263,11 @@ namespace nadwin
 		wc.lpszClassName = "NADWIN_WINDOW";
 		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 		wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
-		RegisterClassExA(&wc);
+
+		if (!RegisterClassExA(&wc))
+		{
+			throw std::runtime_error("Failed to register window class");
+		}
 	}
 
 	WINApp::~WINApp()
@@ -247,7 +294,7 @@ namespace nadwin
 
 		if (window == nullptr)
 		{
-			NADWIN_LOG("Window is null, calling DefWindowProc, this message is not an error, it's just for debugging purposes");
+			NADWIN_WARN("Failed to get window reference in appProc");
 			return DefWindowProcA(hwnd, msg, wParam, lParam);
 		}
 
@@ -260,7 +307,7 @@ namespace nadwin
 
 	WinGDIRenderer::WinGDIRenderer(HWND hwnd)
 	{
-		this->m_hwnd = hwnd;
+		m_hwnd = hwnd;
 		m_hdc = GetDC(m_hwnd);
 	}
 
@@ -271,27 +318,47 @@ namespace nadwin
 
 	void WinGDIRenderer::DrawRect(Vector2D position, Vector2D size, ColorRGB color)
 	{
+		RECT rect = { 0 };
+		rect.left = position.x;
+		rect.top = position.y;
+		rect.right = position.x + size.x;
+		rect.bottom = position.y + size.y;
+
+		HBRUSH brush = (HBRUSH)::GetStockObject(DC_BRUSH);
+		SetDCBrushColor(m_hdc, color.ToCOLORREF());
+
+		FillRect(m_hdc, &rect, brush);
+	}
+
+	void WinGDIRenderer::PaintText(Vector2D position, Vector2D size, std::string text, ColorRGB color)
+	{
+		SetTextColor(m_hdc, color.ToCOLORREF());
+		SetBkMode(m_hdc, TRANSPARENT);
+
 		RECT rect;
 		rect.left = position.x;
 		rect.top = position.y;
 		rect.right = position.x + size.x;
 		rect.bottom = position.y + size.y;
 
-		FillRect(m_hdc, &rect, nullptr);
+		DrawTextA(m_hdc, text.c_str(), text.length(), &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 	}
 
 	//
 	// WINRenderingContext
 	//
 
-	void WINRenderingContext::Init()
+	void WINRenderingContext::Init(BaseWindow* window)
 	{
+		WINWindow* winWindow = reinterpret_cast<WINWindow*>(window);
 
+		// TODO: Check which renderer to use
+		m_renderer = new WinGDIRenderer(winWindow->m_hwnd);
 	}
 
 	void WINRenderingContext::Shutdown()
 	{
-
+		delete m_renderer;
 	}
 
 	//
@@ -316,9 +383,14 @@ namespace nadwin
 		}
 
 		SetWindowLongPtrW(m_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+
+		m_renderingContext = new WINRenderingContext();
+		m_renderingContext->Init(this);
 	}
 
 	WINWindow::~WINWindow() {
+		m_renderingContext->Shutdown();
+		delete m_renderingContext;
 		DestroyWindow(m_hwnd);
 	}
 
@@ -367,14 +439,15 @@ namespace nadwin
 		Button();
 		~Button();
 
-		void SetPosition(int x, int y);
-		void SetSize(int width, int height);
+		void SetPosition(int x, int y) override;
+		void SetSize(int width, int height) override;
 
-		void Show();
-		void Destroy();
+		void Destroy() override;
 
+		ColorRGB background_color = { 32, 128, 255 };
+		std::string text = "";
 	protected:
-		void Paint(BaseWindow* window, BaseRenderingContext* renderingContext) override;
+		void Paint(BaseWindow* window) override;
 	};
 
 	Button::Button()
@@ -384,7 +457,7 @@ namespace nadwin
 
 	Button::~Button()
 	{
-
+		Destroy();
 	}
 
 	void Button::SetPosition(int x, int y)
@@ -399,19 +472,18 @@ namespace nadwin
 		m_size.y = height;
 	}
 
-	void Button::Show()
-	{
-
-	}
-
 	void Button::Destroy()
 	{
-
+		RemoveFromWindow();
 	}
 
-	void Button::Paint(BaseWindow* window, BaseRenderingContext* renderingContext)
+	void Button::Paint(BaseWindow* window)
 	{
-		NADWIN_LOG("Button::Paint()");
+		// TODO: Check if control is visible
+
+		BaseRenderer* renderer = window->GetRenderingContext()->GetRenderer();
+		renderer->DrawRect(m_position, m_size, background_color);
+		renderer->PaintText(m_position, m_size, text, { 255, 255, 255 });
 	}
 
 #if defined(_WIN32)
