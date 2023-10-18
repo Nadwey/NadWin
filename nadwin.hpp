@@ -32,6 +32,12 @@ namespace nadwin
 		int y = 0;
 	};
 
+	struct ColorRGB {
+		unsigned char r = 0;
+		unsigned char g = 0;
+		unsigned char b = 0;
+	};
+
 	//
 	// App
 	//
@@ -46,6 +52,14 @@ namespace nadwin
 		/// </summary>
 		/// <returns>Exit code</returns>
 		virtual int Run() = 0;
+	};
+
+	class BaseRenderingContext {
+	protected:
+		virtual void Init() = 0;
+		virtual void Shutdown() = 0;
+
+
 	};
 
 	/// <summary>
@@ -107,7 +121,7 @@ namespace nadwin
 		Vector2D m_position;
 		Vector2D m_size;
 
-		virtual void Paint() = 0;
+		virtual void Paint(BaseWindow* window, BaseRenderingContext* renderingContext) = 0;
 
 	private:
 		friend class BaseWindow;
@@ -125,14 +139,14 @@ namespace nadwin
 
 	void BaseWindow::PaintControl(BaseControl* control)
 	{
-		control->Paint();
+		control->Paint(this, (BaseRenderingContext*)nullptr); // CHANGE THIS
 	}
 
+#if defined(_WIN32)
 	//
 	// Windows Definitions
 	//
 
-#if defined(_WIN32)
 	class WINApp : public BaseApp {
 	public:
 		WINApp();
@@ -146,6 +160,24 @@ namespace nadwin
 		HINSTANCE m_hinstance = nullptr;
 
 		friend class WINWindow;
+	};
+
+	class WinGDIRenderer {
+	public:
+		WinGDIRenderer(HWND hwnd);
+		~WinGDIRenderer();
+
+		void DrawRect(Vector2D position, Vector2D size, ColorRGB color);
+
+	private:
+		HWND m_hwnd = nullptr;
+		HDC m_hdc = nullptr;
+	};
+
+	class WINRenderingContext : public BaseRenderingContext {
+	protected:
+		void Init() override;
+		void Shutdown() override;
 	};
 
 	class WINWindow : public BaseWindow {
@@ -220,6 +252,46 @@ namespace nadwin
 		}
 
 		return window->windowProc(msg, wParam, lParam);
+	}
+
+	//
+	// WinGDIRenderer
+	//
+
+	WinGDIRenderer::WinGDIRenderer(HWND hwnd)
+	{
+		this->m_hwnd = hwnd;
+		m_hdc = GetDC(m_hwnd);
+	}
+
+	WinGDIRenderer::~WinGDIRenderer()
+	{
+		ReleaseDC(m_hwnd, m_hdc);
+	}
+
+	void WinGDIRenderer::DrawRect(Vector2D position, Vector2D size, ColorRGB color)
+	{
+		RECT rect;
+		rect.left = position.x;
+		rect.top = position.y;
+		rect.right = position.x + size.x;
+		rect.bottom = position.y + size.y;
+
+		FillRect(m_hdc, &rect, nullptr);
+	}
+
+	//
+	// WINRenderingContext
+	//
+
+	void WINRenderingContext::Init()
+	{
+
+	}
+
+	void WINRenderingContext::Shutdown()
+	{
+
 	}
 
 	//
@@ -302,7 +374,7 @@ namespace nadwin
 		void Destroy();
 
 	protected:
-		void Paint() override;
+		void Paint(BaseWindow* window, BaseRenderingContext* renderingContext) override;
 	};
 
 	Button::Button()
@@ -337,7 +409,7 @@ namespace nadwin
 
 	}
 
-	void Button::Paint()
+	void Button::Paint(BaseWindow* window, BaseRenderingContext* renderingContext)
 	{
 		NADWIN_LOG("Button::Paint()");
 	}
