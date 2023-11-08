@@ -67,6 +67,7 @@ namespace nadwin
 	public:
 		virtual void DrawRect(Vector2D position, Vector2D size, ColorRGB color) = 0;
 		virtual void PaintText(Vector2D position, Vector2D size, std::string text, ColorRGB color) = 0; // stupid winapi macros
+		virtual void DrawLine(Vector2D start, Vector2D end, float strokeWidth, ColorRGB color) = 0;
 	};
 
 	class BaseRenderingContext {
@@ -210,6 +211,7 @@ namespace nadwin
 
 		void DrawRect(Vector2D position, Vector2D size, ColorRGB color) override;
 		void PaintText(Vector2D position, Vector2D size, std::string text, ColorRGB color) override;
+		void DrawLine(Vector2D start, Vector2D end, float strokeWidth, ColorRGB color) override;
 
 	private:
 		HWND m_hwnd = nullptr;
@@ -344,6 +346,11 @@ namespace nadwin
 		DrawTextA(m_hdc, text.c_str(), text.length(), &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 	}
 
+	void WinGDIRenderer::DrawLine(Vector2D start, Vector2D end, float strokeWidth, ColorRGB color)
+	{
+
+	}
+
 	//
 	// WINRenderingContext
 	//
@@ -445,6 +452,7 @@ namespace nadwin
 		void Destroy() override;
 
 		ColorRGB background_color = { 32, 128, 255 };
+		ColorRGB foreground_color = { 255, 255, 255 };
 		std::string text = "";
 	protected:
 		void Paint(BaseWindow* window) override;
@@ -483,7 +491,7 @@ namespace nadwin
 
 		BaseRenderer* renderer = window->GetRenderingContext()->GetRenderer();
 		renderer->DrawRect(m_position, m_size, background_color);
-		renderer->PaintText(m_position, m_size, text, { 255, 255, 255 });
+		renderer->PaintText(m_position, m_size, text, foreground_color);
 	}
 
 #if defined(_WIN32)
